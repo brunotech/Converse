@@ -13,9 +13,7 @@ def myfunction(entities, *argv, **kargs):
         my_entity_value = some_operation(entities[entity_name])
         success = True
         message = (
-            "This is the response for my entity, the entity value is {}".format(
-                my_entity_value
-            ),
+            f"This is the response for my entity, the entity value is {my_entity_value}",
         )
     except:
         print("Could not process the entity.")

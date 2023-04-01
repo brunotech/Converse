@@ -223,7 +223,7 @@ def strip_accents(text):
 
 # valid string only includes al
 def _is_valid(string):
-    return True if not re.search("[^a-z]", string) else False
+    return not re.search("[^a-z]", string)
 
 
 def _read_tsv(input_file, quotechar=None):
@@ -233,7 +233,7 @@ def _read_tsv(input_file, quotechar=None):
         lines = []
         for line in reader:
             if sys.version_info[0] == 2:
-                line = list(unicode(cell, "utf-8") for cell in line)
+                line = [unicode(cell, "utf-8") for cell in line]
             lines.append(line)
         return lines
 
@@ -255,7 +255,7 @@ def prepare_embedding_retrieval(glove_file, vocab_size=100000):
                 break
 
     vocab = {w: idx for idx, w in enumerate(words)}
-    ids_to_tokens = {idx: w for idx, w in enumerate(words)}
+    ids_to_tokens = dict(enumerate(words))
 
     vector_dim = len(embeddings[ids_to_tokens[0]])
     emb_matrix = np.zeros((vocab_size, vector_dim))
@@ -359,15 +359,16 @@ class DataAugmentor(object):
         candidate_sents = [sent]
 
         tokens = self.tokenizer.basic_tokenizer.tokenize(sent)
-        candidate_words = {}
-        for (idx, word) in enumerate(tokens):
-            if _is_valid(word) and word not in StopWordsList:
-                candidate_words[idx] = self._word_augment(sent, idx, word)
+        candidate_words = {
+            idx: self._word_augment(sent, idx, word)
+            for idx, word in enumerate(tokens)
+            if _is_valid(word) and word not in StopWordsList
+        }
         logger.info(candidate_words)
         cnt = 0
         while cnt < self.N:
             new_sent = list(tokens)
-            for idx in candidate_words.keys():
+            for idx in candidate_words:
                 candidate_word = random.choice(candidate_words[idx])
 
                 x = random.random()
@@ -433,7 +434,7 @@ class AugmentProcessor(object):
                         writer.writerow(line)
 
                 if (i + 1) % 1000 == 0:
-                    logger.info("Having been processing {} examples".format(str(i + 1)))
+                    logger.info(f"Having been processing {str(i + 1)} examples")
 
 
 def main():

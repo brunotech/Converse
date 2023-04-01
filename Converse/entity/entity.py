@@ -79,9 +79,7 @@ class Entity(object):
         self.normalized_value = normalized_value
         self.ner_label = label
         if span:
-            start = 0
-            if "start" in span:
-                start = span["start"]
+            start = span.get("start", 0)
             span = (start, span["end"])
         self.span = span
         self.turn: int = None  # turn from which the entity was retrieved
@@ -166,7 +164,7 @@ class Entity(object):
         If there are multiple entities of the same value, single out the one with the
         highest score.
         """
-        entity_dict = dict()
+        entity_dict = {}
         for entity in entities:
             value, score = entity.value, entity.score
             if value not in entity_dict or entity_dict[value].score < score:
@@ -180,7 +178,7 @@ class Entity(object):
         If there are multiple entities of the same user utterance value, single out the
         one with the highest score.
         """
-        entity_dict = dict()
+        entity_dict = {}
         for entity in entities:
             user_utt_value, score = entity.user_utt_value, entity.score
             if (
@@ -279,7 +277,7 @@ class EmailEntity(StringEntity):
             score=1,
             method=ExtractionMethod.NER,
             user_utt_value=ner_model_output["normalizedValue"],
-            span=ner_model_output["span"] if "span" in ner_model_output else None,
+            span=ner_model_output.get("span", None),
         )
 
     @classmethod
@@ -291,38 +289,36 @@ class EmailEntity(StringEntity):
             2. a valid email address, with no filler words
                 (i.e., it's, it is, my email is, ...)
         """
-        words = utterance.split()
-        res = re.findall(r"[a-zA-Z0-9.\-_]+@[a-zA-Z0-9.\-_]+[a-zA-Z0-9]", utterance)
-        if res:
+        if res := re.findall(
+            r"[a-zA-Z0-9.\-_]+@[a-zA-Z0-9.\-_]+[a-zA-Z0-9]", utterance
+        ):
             # extract email addresses that are complete
             return [cls(1, ExtractionMethod.SPELLING, email) for email in res]
-        else:
-            # try to extract email address from utterance
-            at = None
-            for i in range(len(words)):
-                if words[i].lower() == "at":
-                    at = i
-            if not at:
-                return []
-            words[at] = "@"
-            end = at + 1
-            while end + 1 < len(words):
-                if (
-                    words[end].lower() == "dot"
-                    or words[end] == "."
-                    and words[end + 1].lower() == "com"
-                ):
-                    words[end] = "."
-                    words[end + 1] = "com"
-                    end = end + 1
-                    break
-                end += 1
-            if end == len(words):
-                return []
-            first_half = "".join(words[:at])
-            second_half = "".join(words[at : end + 1])
-            res = first_half + second_half
-            return [cls(1, ExtractionMethod.SPELLING, res.replace(" ", ""))]
+        # try to extract email address from utterance
+        at = None
+        words = utterance.split()
+        for i in range(len(words)):
+            if words[i].lower() == "at":
+                at = i
+        if not at:
+            return []
+        words[at] = "@"
+        end = at + 1
+        while end + 1 < len(words):
+            if (
+                words[end].lower() == "dot"
+                or words[end] == "."
+                and words[end + 1].lower() == "com"
+            ):
+                words[end] = "."
+                words[end + 1] = "com"
+                end = end + 1
+                break
+            end += 1
+        if end == len(words):
+            return []
+        res = "".join(words[:at]) + "".join(words[at : end + 1])
+        return [cls(1, ExtractionMethod.SPELLING, res.replace(" ", ""))]
 
 
 class EventEntity(StringEntity):
@@ -506,18 +502,15 @@ class MoneyEntity(StringEntity):
         that is supported by default) in English:
         https://github.com/facebookarchive/duckling_old/blob/master/resources/languages/en/rules/finance.clj
         """
-        if self.normalized_value:
-            normalized_value = dict(self.normalized_value)
-            monetary_unit = normalized_value["unit"]
-            value = normalized_value["value"]
-            if monetary_unit == "cent":
-                value *= 0.01
-                monetary_unit = "$"
-            if monetary_unit == "$":
-                # This is to format dollars in the US.
-                return f"${value:,.2f}"
-            return f"{value} {monetary_unit}"
-        return str(self.user_utt_value)
+        if not self.normalized_value:
+            return str(self.user_utt_value)
+        normalized_value = dict(self.normalized_value)
+        monetary_unit = normalized_value["unit"]
+        value = normalized_value["value"]
+        if monetary_unit == "cent":
+            value *= 0.01
+            monetary_unit = "$"
+        return f"${value:,.2f}" if monetary_unit == "$" else f"{value} {monetary_unit}"
 
 
 class NORPEntity(StringEntity):
@@ -918,10 +911,7 @@ class CardinalEntity(NumberEntity):
                 has_number_value = False
         if not has_number_value:
             return None
-        score = 1
-        if "probability" in ner_model_output:
-            score = ner_model_output["probability"]
-
+        score = ner_model_output.get("probability", 1)
         return cls(
             score=score,
             method=ExtractionMethod.NER,
@@ -1038,9 +1028,9 @@ class NamedEntityExtractor(EntityExtractor):
             return candidates
         for normalized_candidate in normalized_candidates:
             value = normalized_candidate["token"]
-            normalized_value = normalized_candidate["normalizedValue"]
-            normalized_label = normalized_candidate["label"]
             if value in value_to_candidates:
+                normalized_value = normalized_candidate["normalizedValue"]
+                normalized_label = normalized_candidate["label"]
                 for candidate in value_to_candidates[value]:
                     label = candidate["label"]
                     if (
@@ -1099,8 +1089,7 @@ class SpellingEntityExtractor(EntityExtractor):
         for appropriate extraction
         """
         utterance = self._clean_up_text(utterance)
-        entities = self.entity_type.from_spelling(utterance)
-        return entities
+        return self.entity_type.from_spelling(utterance)
 
     @classmethod
     def _clean_up_text(cls, utterance: str):

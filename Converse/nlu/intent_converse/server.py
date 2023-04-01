@@ -36,7 +36,7 @@ class IntentApplication:
     def run(self):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=self.max_workers))
         self.add_servicer_to_server(server)
-        server.add_insecure_port("[::]:" + str(self.grpc_port))
+        server.add_insecure_port(f"[::]:{str(self.grpc_port)}")
         server.start()
         try:
             while True:

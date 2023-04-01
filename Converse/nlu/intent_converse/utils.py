@@ -42,8 +42,7 @@ def get_logger(name):
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
-    logger = logging.getLogger(name)
-    return logger
+    return logging.getLogger(name)
 
 
 def truncate_seq_pair(tokens_a, tokens_b, max_length):
@@ -74,7 +73,7 @@ def get_optimizer(model, t_total, args):
             "params": [
                 p
                 for n, p in model.named_parameters()
-                if not any(nd in n for nd in no_decay)
+                if all(nd not in n for nd in no_decay)
             ],
             "weight_decay": 0.01,
         },
@@ -115,11 +114,9 @@ def get_train_dataloader(train_features, train_batch_size):
         all_input_ids, all_input_mask, all_segment_ids, all_label_ids
     )
     train_sampler = RandomSampler(train_data)
-    train_dataloader = DataLoader(
+    return DataLoader(
         train_data, sampler=train_sampler, batch_size=train_batch_size
     )
-
-    return train_dataloader
 
 
 def get_eval_dataloader(eval_features, eval_batch_size):
@@ -135,11 +132,9 @@ def get_eval_dataloader(eval_features, eval_batch_size):
         all_input_ids, all_input_mask, all_segment_ids, all_label_ids
     )
     eval_sampler = SequentialSampler(eval_data)
-    eval_dataloader = DataLoader(
+    return DataLoader(
         eval_data, sampler=eval_sampler, batch_size=eval_batch_size
     )
-
-    return eval_dataloader
 
 
 def process_train_batch(batch, device):
@@ -169,9 +164,7 @@ def loss_with_label_smoothing(label_ids, logits, label_distribution, coeff, devi
     # KL-div loss
     prediction = torch.log(torch.softmax(logits, dim=1))
 
-    loss = F.kl_div(prediction, target_distribution, reduction="mean")
-
-    return loss
+    return F.kl_div(prediction, target_distribution, reduction="mean")
 
 
 class IntentExample:
@@ -184,9 +177,7 @@ class IntentExample:
 def load_intent_examples(file_path):
     examples = []
 
-    with open("{}/seq.in".format(file_path), "r", encoding="utf-8") as f_text, open(
-        "{}/label".format(file_path), "r", encoding="utf-8"
-    ) as f_label:
+    with (open(f"{file_path}/seq.in", "r", encoding="utf-8") as f_text, open(f"{file_path}/label", "r", encoding="utf-8") as f_label):
         for text, label in zip(f_text, f_label):
             if ";" in label:
                 continue
@@ -216,10 +207,7 @@ def sample(N, examples):
     sampled_examples = []
     for l in labels:
         random.shuffle(labels[l])
-        if l == "oos":
-            examples = labels[l][:N]
-        else:
-            examples = labels[l][:N]
+        examples = labels[l][:N]
         sampled_examples.append({"task": l, "examples": examples})
 
     return sampled_examples
@@ -268,8 +256,8 @@ def calc_in_f1(examples, in_domain_preds, thresholds):
                 preds_over_threshold[i].append(pred)
             else:
                 preds_over_threshold[i].append("oos")
-    for i in range(len(preds_over_threshold)):
-        f1 = f1_score(truth, preds_over_threshold[i], average="macro")
+    for item in preds_over_threshold:
+        f1 = f1_score(truth, item, average="macro")
         in_f1.append(f1)
     return in_f1
 
@@ -311,13 +299,9 @@ def calc_oos_precision(in_domain_preds, oos_preds, thresholds):
     oos_prec = []
 
     for th in thresholds:
-        oos_output_count = 0
         oos_correct = 0
 
-        for pred in in_domain_preds:
-            if pred[0] < th:
-                oos_output_count += 1
-
+        oos_output_count = sum(pred[0] < th for pred in in_domain_preds)
         for pred in oos_preds:
             if pred[0] < th:
                 oos_output_count += 1
@@ -350,12 +334,7 @@ def calc_oos_acc(in_domain_preds, oos_preds, thresholds):
     oos_acc = []
 
     for th in thresholds:
-        oos_correct = 0
-
-        for pred in in_domain_preds:
-            if pred[0] > th:
-                oos_correct += 1
-
+        oos_correct = sum(pred[0] > th for pred in in_domain_preds)
         for pred in oos_preds:
             if pred[0] < th:
                 oos_correct += 1
@@ -524,10 +503,7 @@ def save_to_file(folder_name, file_predictions, f, do_final_test=None):
     stats_lists[folder_model_name]["All_Trials"] = []
 
     for i in range(len(acc)):
-        task_trail = {}
-        task_trail["Trial"] = i
-
-        task_trail["In-domain ACC"] = acc[i][best_threshold_index].item()
+        task_trail = {"Trial": i, "In-domain ACC": acc[i][best_threshold_index].item()}
         task_trail["Out-of-Scope ACC"] = oos_acc[i][best_threshold_index].item()
         # task_trail["Unique Word Ratio"] = unique_words_ratios[i]
         task_trail["Eval_Preds"] = file_predictions[i]
@@ -535,10 +511,10 @@ def save_to_file(folder_name, file_predictions, f, do_final_test=None):
     # print(stats_lists)
     if do_final_test:
         # out_file_name = folder_name + "result_and_predictions_VALID.json"
-        out_file_name = folder_name + "result_and_predictions_TEST.json"
+        out_file_name = f"{folder_name}result_and_predictions_TEST.json"
     else:
         # out_file_name = folder_name + "result_and_predictions.json"
-        out_file_name = folder_name + "result_and_predictions_MASK_hard_oos-Top_2.json"
+        out_file_name = f"{folder_name}result_and_predictions_MASK_hard_oos-Top_2.json"
 
     with open(out_file_name, "w") as outfile:
         json.dump(stats_lists, outfile, indent=4)
@@ -548,7 +524,6 @@ def read_label_list(fp):
     label_list = []
     with open(fp, "r") as handler:
         for line in handler:
-            new_line = line.strip()
-            if new_line:
+            if new_line := line.strip():
                 label_list.append(new_line)
     return label_list

@@ -62,10 +62,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
             # length is less than the specified length.
             # Account for [CLS], [SEP], [SEP] with "- 3"
             _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
-        else:
-            # Account for [CLS] and [SEP] with "- 2"
-            if len(tokens_a) > max_seq_length - 2:
-                tokens_a = tokens_a[: (max_seq_length - 2)]
+        elif len(tokens_a) > max_seq_length - 2:
+            tokens_a = tokens_a[: (max_seq_length - 2)]
 
         # The convention in BERT is:
         # (a) For sequence pairs:
@@ -229,9 +227,7 @@ class IntentPredictor:
         # Intent
         nli_input = []
         for t in tasks:
-            for e in t[example_key]:
-                nli_input.append((input, e.lower()))
-
+            nli_input.extend((input, e.lower()) for e in t[example_key])
         results = self.bert.predict(nli_input)
         maxScore, maxIndex = results[1][:, 0].max(dim=0)
 
@@ -255,8 +251,8 @@ class IntentPredictor:
 
 
 def intent_samples(task_info: dict):
-    res = []
-    for task in task_info:
-        if "samples" in task_info[task]:
-            res.append({"task": task, "examples": task_info[task]["samples"]})
-    return res
+    return [
+        {"task": task, "examples": task_info[task]["samples"]}
+        for task, value in task_info.items()
+        if "samples" in value
+    ]

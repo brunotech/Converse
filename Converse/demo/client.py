@@ -12,23 +12,17 @@ import time
 
 def process_call(cid, text):
     r = requests.post("http://0.0.0.0:9002/process", json={"cid": cid, "text": text})
-    if r.status_code != 200:
-        return {"response": "ERROR"}
-    return r.json()
+    return {"response": "ERROR"} if r.status_code != 200 else r.json()
 
 
 def reset_call(cid):
     r = requests.post("http://0.0.0.0:9002/reset", json={"cid": cid})
-    if r.status_code != 200:
-        return {"response": "ERROR"}
-    return r.json()
+    return {"response": "ERROR"} if r.status_code != 200 else r.json()
 
 
 def cur_entity_call():
     r = requests.post("http://0.0.0.0:9002/cur_entity")
-    if r.status_code != 200:
-        return {"response": "ERROR"}
-    return r.json()
+    return {"response": "ERROR"} if r.status_code != 200 else r.json()
 
 
 if __name__ == "__main__":

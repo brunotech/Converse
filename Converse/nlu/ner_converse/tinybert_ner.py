@@ -64,7 +64,7 @@ class NerPredictor:
 
         model_path = os.path.abspath(model_path)
         model_config = torch.load(
-            model_path + "/config.pt", map_location=lambda storage, loc: storage
+            f"{model_path}/config.pt", map_location=lambda storage, loc: storage
         )
 
         self.model = NerAddrParser.from_pretrained(
@@ -209,7 +209,7 @@ class NerPredictor:
         pred.probability = probability
         pred.token = text[start_cache[0] : end_cache[-1]]
         address_line = [
-            tag + ":" + text[start:end]
+            f"{tag}:{text[start:end]}"
             for start, end, tag in zip(start_cache, end_cache, tag_cache)
         ]
         pred.normalizedValue = "|".join(address_line)
@@ -415,23 +415,16 @@ class NerPredictor:
             return response
 
     def predict(self, text, return_span=True):
-        batch_id = []
-        batch_token_starts = []
-        batch_token_ends = []
-        batch_text = []
         dynamic_batch_seq_len = 0
-        batch_seq_len = []
-        batch_span = []
-
         text, token_ids, token_starts, token_ends = self.text2id(text)
-        batch_text.append(text)
-        batch_id.append([self.cls_id] + token_ids + [self.sep_id])
-        batch_token_starts.append(token_starts)
-        batch_token_ends.append(token_ends)
-        batch_span.append(return_span)
+        batch_text = [text]
+        batch_id = [[self.cls_id] + token_ids + [self.sep_id]]
+        batch_token_starts = [token_starts]
+        batch_token_ends = [token_ends]
+        batch_span = [return_span]
         # Update dynamic batch size
         tokens_len = len(token_ids)
-        batch_seq_len.append(tokens_len)
+        batch_seq_len = [tokens_len]
         if tokens_len + 2 > dynamic_batch_seq_len:
             dynamic_batch_seq_len = tokens_len + 2
 

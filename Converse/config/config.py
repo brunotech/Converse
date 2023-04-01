@@ -29,7 +29,7 @@ class ConfigDictionary:
 
     def __init__(self, dictionary: dict = None):
         if dictionary is None:
-            dictionary = dict()
+            dictionary = {}
         self._keys = set(dictionary)
         for key, value in dictionary.items():
             self.__setattr__(key, value)
@@ -61,10 +61,10 @@ class ConfigDictionary:
     def __eq__(self, other):
         if len(self) != len(other):
             return False
-        for key, value in other.items():
-            if key not in self._keys or value != self[key]:
-                return False
-        return True
+        return not any(
+            key not in self._keys or value != self[key]
+            for key, value in other.items()
+        )
 
 
 class AllowedKeyConfigDictionary(ConfigDictionary):
@@ -81,7 +81,7 @@ class AllowedKeyConfigDictionary(ConfigDictionary):
         super().__init__(dictionary)
         for key in self._keys:
             if key not in self._AllowedKeys:
-                raise KeyError("Attribute %s not allowed" % key)
+                raise KeyError(f"Attribute {key} not allowed")
 
 
 class FixedKeyConfigDictionary(ConfigDictionary):
@@ -118,7 +118,7 @@ class FixedKeyConfigDictionary(ConfigDictionary):
 
     def __init__(self, dictionary: dict = None):
         if dictionary is None:
-            dictionary = dict()
+            dictionary = {}
         super().__init__(dictionary)
 
         for key in self._keys:
@@ -126,15 +126,12 @@ class FixedKeyConfigDictionary(ConfigDictionary):
                 key not in self._REQUIRED_ATTRIBUTES
                 and key not in self._OPTIONAL_ATTRIBUTES
             ):
-                raise ValueError(
-                    "Unrecognized attribute %s in %s" % (key, self.__class__.__name__)
-                )
+                raise ValueError(f"Unrecognized attribute {key} in {self.__class__.__name__}")
 
         for key, valueType in self._REQUIRED_ATTRIBUTES.items():
             if key not in dictionary:
                 raise ValueError(
-                    "Required attribute %s missing from %s"
-                    % (key, self.__class__.__name__)
+                    f"Required attribute {key} missing from {self.__class__.__name__}"
                 )
             elif not isinstance(self[key], valueType) and self[key]:
                 self.__setattr__(key, valueType(dictionary[key]))
@@ -171,7 +168,7 @@ class ConfigDictionaryOfType(ConfigDictionary):
 
     def __init__(self, dictionary: dict = None):
         if dictionary is None:
-            dictionary = dict()
+            dictionary = {}
         self._keys = set(dictionary)
         for key, value in dictionary.items():
             self.__setattr__(key, self._type(value))
@@ -204,8 +201,7 @@ class ConfigListOfType:
         self._values = []
         if iterable is None:
             iterable = []
-        for value in iterable:
-            self._values.append(self._type(value))
+        self._values.extend(self._type(value) for value in iterable)
 
     def __len__(self) -> int:
         return len(self._values)

@@ -83,7 +83,7 @@ class EntitySpecification(FixedKeyConfigDictionary):
         # we must make sure that each type is valid
         for entityType in self.type:
             if entityType not in EntityManager.type2class:
-                raise ValueError("Invalid entity type: %s" % entityType)
+                raise ValueError(f"Invalid entity type: {entityType}")
 
 
 class EntityConfig(ConfigDictionaryOfType):
@@ -142,7 +142,7 @@ class EntityManager:
                 "Entity"
             ]
         else:
-            self.entity_config = dict()
+            self.entity_config = {}
 
         self.entity_extraction_path = entity_extraction_path
         self.entity_extraction_config = load_entity_extraction(
@@ -178,7 +178,7 @@ class EntityManager:
         try:
             entity_types = self.entity_config[cur_entity_name]["type"]
         except (TypeError, KeyError, AttributeError):
-            log.info("no entity type provided for %s entity" % cur_entity_name)
+            log.info(f"no entity type provided for {cur_entity_name} entity")
         return entity_types
 
     def get_entity_classes(self, entity_name: str) -> List[type(Entity)]:
@@ -191,7 +191,7 @@ class EntityManager:
             for label in self.entity_config[entity_name]["type"]:
                 entity_classes.add(self._entity_class_from_label(label))
         except (KeyError, TypeError):
-            log.info("no entity type provided for %s entity" % entity_name)
+            log.info(f"no entity type provided for {entity_name} entity")
         return list(entity_classes)
 
     def get_extraction_methods(self, entity_name: str) -> dict:
@@ -208,19 +208,15 @@ class EntityManager:
         methods = self.entity_config[entity_name]["methods"]
         if not methods:
             methods = {}
-            if entity_name:
-                if entity_name in self.entity_config:
-                    if (
+            if entity_name not in self.entity_config:
+                raise KeyError(f"entity {entity_name} not defined in {self.entity_path}")
+
+            if (
                         "type" in self.entity_config[entity_name]
                         and self.entity_config[entity_name]["type"]
                     ):
-                        for entity_type in self.entity_config[entity_name]["type"]:
-                            methods.update(self.entity_extraction_config[entity_type])
-                else:
-                    raise KeyError(
-                        "entity %s not defined in %s" % (entity_name, self.entity_path)
-                    )
-
+                for entity_type in self.entity_config[entity_name]["type"]:
+                    methods |= self.entity_extraction_config[entity_type]
         return methods
 
     def suggest_entity_value(self, entity_name: str) -> bool:
@@ -279,5 +275,3 @@ class EntityManager:
         return sorted(entities, key=lambda x: x.score, reverse=True)
 
 
-if __name__ == "__main__":
-    pass

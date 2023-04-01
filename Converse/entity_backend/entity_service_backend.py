@@ -50,7 +50,7 @@ def funcInch2Cm():
     entity_name = "inch"
     inch = float(dm_msg[entity_name])
     cm = 2.54 * inch
-    return json_resp(True, "{} inch equals to {} centimeter".format(inch, cm))
+    return json_resp(True, f"{inch} inch equals to {cm} centimeter")
 
 
 @timeout(1.0)
@@ -95,10 +95,10 @@ def funcGetTVPlanPrice():
     price = {"hulu live": 200, "hulu tv": 200, "fubo tv": 300, "pluto tv": 500}
     try:
         return json_resp(
-            True, "the price of {} is {} dollar per year".format(tvplan, price[tvplan])
+            True, f"the price of {tvplan} is {price[tvplan]} dollar per year"
         )
     except Exception:
-        return json_resp(False, msg="the price of {} is not avaiable".format(tvplan))
+        return json_resp(False, msg=f"the price of {tvplan} is not avaiable")
 
 
 @timeout(0.5)
@@ -107,8 +107,7 @@ def single_step_verify():
     entities = request.json["entities"]
     cur_entity = request.json["cur_entity"]
     try:
-        verify_res = simple_db.single_step_verify(entities, cur_entity)
-        if verify_res:
+        if verify_res := simple_db.single_step_verify(entities, cur_entity):
             return json_resp(verify_res, msg="Verified")
         else:
             return json_resp(verify_res, msg="Verify failed")

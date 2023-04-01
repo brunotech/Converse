@@ -28,15 +28,15 @@ class Response:
         self.entity_manager = entity_manager
 
     def confirm_user(self):
-        if not self.user_name:
-            res = choice(self._responses["greetings"]["unknown"]).replace(
-                "<bot name>", self.bot_name
-            )
-        else:
-            res = choice(self._responses["greetings"]["known"]).replace(
+        return (
+            choice(self._responses["greetings"]["known"]).replace(
                 "<User>", self.user_name
             )
-        return res
+            if self.user_name
+            else choice(self._responses["greetings"]["unknown"]).replace(
+                "<bot name>", self.bot_name
+            )
+        )
 
     def greeting(self):
         return (
@@ -124,8 +124,8 @@ class Response:
                     entity_values.extend(value)
             if entity_values:
                 res_tmp += "\n" + choice(self._responses["suggest_entity_value"])
-                for i in range(len(entity_values)):
-                    res_tmp += "- " + str(entity_values[i]) + "\n"
+                for entity_value in entity_values:
+                    res_tmp += f"- {str(entity_value)}" + "\n"
         return res_tmp.strip()
 
     def entity_response(self, task, entity, info):
@@ -161,40 +161,36 @@ class Response:
         """
         if not tasks:
             return ""
-        assert len(tasks) == len(tasks_success), (
-            "tasks and tasks_success should have the same length."
-            + "tasks has a length of {} and tasks_success has a length of {}".format(
-                len(tasks), len(tasks_success)
-            )
-        )
+        assert len(tasks) == len(
+            tasks_success
+        ), f"tasks and tasks_success should have the same length.tasks has a length of {len(tasks)} and tasks_success has a length of {len(tasks_success)}"
         task = tasks[0]
         task_success = tasks_success[0]
-        if task in self.task_config:
-            task_description = self.task_config[task].description
-            if task_success:
-                if self.task_config[task].finish_response.success:
-                    return (
-                        choice(self.task_config[task].finish_response["success"])
-                        .replace("<info>", info)
-                        .strip()
-                    )
-                else:
-                    return choice(
-                        self._responses["task_finish_response"]["success"]
-                    ).replace("<Task>", task_description)
-            else:
-                if self.task_config[task].finish_response.failure:
-                    return (
-                        choice(self.task_config[task].finish_response["failure"])
-                        .replace("<info>", info)
-                        .strip()
-                    )
-                else:
-                    return choice(
-                        self._responses["task_finish_response"]["failure"]
-                    ).replace("<Task>", task_description)
-        else:
+        if task not in self.task_config:
             return ""
+        task_description = self.task_config[task].description
+        if task_success:
+            return (
+                (
+                    choice(self.task_config[task].finish_response["success"])
+                    .replace("<info>", info)
+                    .strip()
+                )
+                if self.task_config[task].finish_response.success
+                else choice(
+                    self._responses["task_finish_response"]["success"]
+                ).replace("<Task>", task_description)
+            )
+        if self.task_config[task].finish_response.failure:
+            return (
+                choice(self.task_config[task].finish_response["failure"])
+                .replace("<info>", info)
+                .strip()
+            )
+        else:
+            return choice(
+                self._responses["task_finish_response"]["failure"]
+            ).replace("<Task>", task_description)
 
     def query_res(self, info: str):
         return choice(self._responses["query_res"]).replace("<Info>", info)
@@ -275,8 +271,7 @@ class Response:
         return choice(self._responses["notification"])
 
     def task_finished(self, task):
-        res = choice(self._responses["task_finished"]).replace("<Task>", task)
-        return res
+        return choice(self._responses["task_finished"]).replace("<Task>", task)
 
     def confirm_finish(self):
         return choice(self._responses["confirm_finish"])
@@ -319,7 +314,7 @@ class Response:
             tasks: A list of descriptions of tasks (str)
             Return: a response based on the task descriptions
         """
-        tasks_des = ""
-        for i in range(len(tasks)):
-            tasks_des += str(i + 1) + ". " + tasks[i] + "\n"
+        tasks_des = "".join(
+            f"{str(i + 1)}. {tasks[i]}" + "\n" for i in range(len(tasks))
+        )
         return choice(self._responses["suggest_tasks"]).replace("<tasks>", tasks_des)

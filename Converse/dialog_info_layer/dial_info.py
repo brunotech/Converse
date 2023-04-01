@@ -85,15 +85,14 @@ class InfoManager:
         res = {"intent": intent_1, "prob": prob1, "uncertain": False}
 
         if negation_flag:
-            if (
-                intent_1
-                and intent_2
-                and intent_1 == intent_2
-                and prob2 - prob1 > self.negate_intent_threshold
-            ):
-                negate_intent = True
-            else:
-                negate_intent = False
+            negate_intent = bool(
+                (
+                    intent_1
+                    and intent_2
+                    and intent_1 == intent_2
+                    and prob2 - prob1 > self.negate_intent_threshold
+                )
+            )
         else:
             negate_intent = False
 
@@ -104,7 +103,7 @@ class InfoManager:
                 res["intent"] = intent_2
                 res["prob"] = prob2
         elif intent_2 and intent_2 == intent_1:
-            if intent_1 != "positive" and intent_1 != "negative":
+            if intent_1 not in ["positive", "negative"]:
                 res["uncertain"] = True
 
         return res
@@ -130,7 +129,7 @@ class InfoManager:
             tokenized_text=tokenized_utt,
             pos_tags=pos_tags,
         )
-        models = [m_name for m_name in self.models_info] if self.models_info else models
+        models = list(self.models_info) if self.models_info else models
         res = self.collect_info(asr_norm, models, ctx)
         cur_mes = ctx.user_history.messages_buffer[-1]
 
@@ -175,13 +174,11 @@ class InfoManager:
                 sents_with_negation_words_removed,
             )
 
-        got_negation = (
-            True
-            if "negation" in res
+        got_negation = bool(
+            "negation" in res
             and "triplets" in res["negation"]
             and res["negation"]["triplets"]
             and res["negation"]["triplets"][0][0] != -1
-            else False
         )
         if got_negation:
             (
@@ -209,7 +206,7 @@ class InfoManager:
                 pos_tags = nltk.pos_tag(words)
                 # skip personal pronoun like I, you, we
                 if " ".join(words[span_s:span_e]).lower() not in COREFERENCE_SKIP:
-                    span_tags = set([t[1] for t in pos_tags[span_s:span_e]])
+                    span_tags = {t[1] for t in pos_tags[span_s:span_e]}
                     # skip pronoun, we only want actually entity here
                     if not span_tags.issubset(SELECTED_POS_TAGS):
                         entity = words[span_s:span_e]
@@ -225,7 +222,7 @@ class InfoManager:
             words = coref_res["words"][::]
             cur_utt_length = len(tokenized_text_with_negation_placeholder)
             start_ind = len(words) - len(tokenized_text_with_negation_placeholder)
-            replaced_token_flags = [n for n in range(cur_utt_length)]
+            replaced_token_flags = list(range(cur_utt_length))
             replaced_span_dict = {}
             sig = "*"
             for cluster in predicted_clusters:
@@ -237,14 +234,12 @@ class InfoManager:
                         and " ".join(words[span_s:span_e]).lower()
                         not in COREFERENCE_SKIP
                     ):
-                        span_tags = set(
-                            [
-                                t[1]
-                                for t in pos_tags[
-                                    span_s - start_ind : span_e - start_ind
-                                ]
+                        span_tags = {
+                            t[1]
+                            for t in pos_tags[
+                                span_s - start_ind : span_e - start_ind
                             ]
-                        )
+                        }
                         if SELECTED_POS_TAGS & span_tags:
                             if not entity_flag:
                                 entity = find_entity(coref_res, cluster)
@@ -269,12 +264,10 @@ class InfoManager:
             utt_replaced_coref = " ".join(utt_replaced_coref)
             return utt_replaced_coref
 
-        got_coref = (
-            True
-            if "coref" in res
+        got_coref = bool(
+            "coref" in res
             and "predicted_clusters" in res["coref"]
             and res["coref"]["predicted_clusters"]
-            else False
         )
         cur_mes.utt_replaced_coref = (
             replace_corefed_entity(
@@ -318,17 +311,14 @@ class InfoManager:
                 )
             )
 
-        res["final_intent"] = None if not intent_res else intent_res[0]
+        res["final_intent"] = intent_res[0] if intent_res else None
         for i in range(1, len(intent_res)):
             if res["final_intent"]["uncertain"]:
                 if not intent_res[i]["uncertain"]:
                     res["final_intent"] = intent_res[i]
                 elif intent_res[i]["prob"] > res["final_intent"]["prob"]:
                     res["final_intent"] = intent_res[i]
-            elif (
-                res["final_intent"]["intent"] == "positive"
-                or res["final_intent"]["intent"] == "negative"
-            ):
+            elif res["final_intent"]["intent"] in ["positive", "negative"]:
                 if intent_res[i]["intent"] != "positive":
                     res["final_intent"] = intent_res[i]
             elif (

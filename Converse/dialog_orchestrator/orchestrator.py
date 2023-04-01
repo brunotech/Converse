@@ -132,8 +132,7 @@ class Orchestrator:
             return self.policy_layer.empty_response(ctx, cur_turn_states)
         cur_turn_states.asr_out = asr_norm
 
-        pause_res = self.pause_detection(ctx, cur_turn_states)
-        if pause_res:
+        if pause_res := self.pause_detection(ctx, cur_turn_states):
             return pause_res
 
         self.policy_layer.state_manager.update_and_get_states(ctx)
@@ -196,12 +195,10 @@ class Orchestrator:
                 "probabilities" in self.extracted_info["ner"]
             )
 
-        cur_turn_states.got_FAQ = (
-            True
-            if self.extracted_info["final_intent"]
+        cur_turn_states.got_FAQ = bool(
+            self.extracted_info["final_intent"]
             and self.extracted_info["final_intent"]["intent"]
             and self.extracted_info["final_intent"]["intent"] in self.faq_config
-            else False
         )
         # exact match FAQ has higher priority than intent equivalent FAQ
         if self.faq_exact_match_questions:
@@ -242,12 +239,11 @@ class Orchestrator:
             ):  # polarity
                 ctx.cur_states.polarity = cur_turn_states.polarity = -1
         else:
-            cur_turn_states.got_intent = (
-                True
-                if self.extracted_info["final_intent"]
+            cur_turn_states.got_intent = bool(
+                self.extracted_info["final_intent"]
                 and self.extracted_info["final_intent"]["intent"]
-                and self.extracted_info["final_intent"]["intent"] in self.task_config
-                else False
+                and self.extracted_info["final_intent"]["intent"]
+                in self.task_config
             )
 
             if cur_turn_states.got_intent:  # got new intent
@@ -296,9 +292,9 @@ class Orchestrator:
         policy_res = self.policy_layer.policy_tree(self.policy, ctx, cur_turn_states)
         res = ""
         if prev_res:
-            res += prev_res + " "
+            res += f"{prev_res} "
         if faq_res:
-            res += faq_res + " "
+            res += f"{faq_res} "
         if policy_res:
             res += policy_res
             ctx.last_response = res
@@ -342,53 +338,51 @@ class Orchestrator:
         """
         if cur_turn_states.got_info:
             self._reset_continuous_no_info_turn_flag(ctx)
+        elif not ctx.cur_states.cur_task and ctx.cur_states.confirm_continue:
+            self._reset_continuous_no_info_turn_flag(ctx)
         else:
-            if not ctx.cur_states.cur_task and ctx.cur_states.confirm_continue:
-                self._reset_continuous_no_info_turn_flag(ctx)
-            else:
-                self._update_continuous_no_info_turn_flag(ctx)
+            self._update_continuous_no_info_turn_flag(ctx)
         return
 
     def pause_detection(
         self, ctx: DialogContext, cur_turn_states: StatesWithinCurrentTurn, model=False
     ) -> str:
-        if not model:
+        if model:
+            return
+        def fuzzy_check(keywords: list, threshold=3):
+            utter = cur_turn_states.asr_out.lower()
+            for k in keywords:
+                res = find_near_matches(k, utter, max_l_dist=threshold)
+                if len(res) > 0:
+                    return True
+            return False
 
-            def fuzzy_check(keywords: list, threshold=3):
-                utter = cur_turn_states.asr_out.lower()
-                for k in keywords:
-                    res = find_near_matches(k, utter, max_l_dist=threshold)
-                    if len(res) > 0:
-                        return True
-                return False
+        hold_keywords = [
+            "hold a second",
+            "hold a sec",
+            "hold a 2nd",
+            "hold a moment",
+            "wait a second",
+            "wait a sec",
+            "wait a 2nd",
+            "wait a moment",
+        ]
 
-            hold_keywords = [
-                "hold a second",
-                "hold a sec",
-                "hold a 2nd",
-                "hold a moment",
-                "wait a second",
-                "wait a sec",
-                "wait a 2nd",
-                "wait a moment",
-            ]
-
-            resume_keywords = [
-                "okay I'm back",
-                "ok i'm back",
-                "i'm back ok" "i'm back",
-                "i am back",
-            ]
-            if not ctx.do_pause:
-                if fuzzy_check(hold_keywords):
-                    ctx.do_pause = True
-                    return "sure"
-            if ctx.do_pause:
-                if fuzzy_check(resume_keywords):
-                    ctx.do_pause = False
-                    return self.policy_layer.welcome_back(ctx)
-                else:
-                    return self.policy_layer.empty_response(ctx, cur_turn_states)
+        resume_keywords = [
+            "okay I'm back",
+            "ok i'm back",
+            "i'm back ok" "i'm back",
+            "i am back",
+        ]
+        if not ctx.do_pause and fuzzy_check(hold_keywords):
+            ctx.do_pause = True
+            return "sure"
+        if ctx.do_pause:
+            if fuzzy_check(resume_keywords):
+                ctx.do_pause = False
+                return self.policy_layer.welcome_back(ctx)
+            else:
+                return self.policy_layer.empty_response(ctx, cur_turn_states)
 
 
 if __name__ == "__main__":

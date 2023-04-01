@@ -92,16 +92,13 @@ def create_config_ui_app(
         elif filetype == "response":
             path = response_path
 
-        if file and filepath == path + ".tmpl":
+        if file and filepath == f"{path}.tmpl":
             file.save(filepath)
-            return {
-                "status": "ok",
-                "msg": "uploaded " + filetype + " template file:" + filename,
-            }
+            return {"status": "ok", "msg": f"uploaded {filetype} template file:{filename}"}
         else:
             return {
                 "status": "error",
-                "msg": "Wrong file format, expect " + os.path.basename(path + ".tmpl"),
+                "msg": f'Wrong file format, expect {os.path.basename(f"{path}.tmpl")}',
             }
 
     @app.route("/saveTree", methods=["POST"])
@@ -123,7 +120,7 @@ def create_config_ui_app(
         elif file == "response":
             path = response_path
         timestamp = datetime.now().strftime("%Y_%m_%d-%I:%M:%S_%p")
-        os.rename(path, path + "." + timestamp)
+        os.rename(path, f"{path}.{timestamp}")
         return {"status": "ok", "msg": "Saved", "response": save_yaml(user_input, path)}
 
     @app.route("/tree", methods=["GET"])
@@ -143,12 +140,12 @@ def create_config_ui_app(
         elif file == "response":
             path = response_path
 
-        tmpl = path + ".tmpl"
+        tmpl = f"{path}.tmpl"
 
-        history = glob.glob(path + ".2*")
+        history = glob.glob(f"{path}.2*")
 
         if timestamp:
-            path = path + "." + timestamp
+            path = f"{path}.{timestamp}"
 
         try:
             data = load_yaml(path)

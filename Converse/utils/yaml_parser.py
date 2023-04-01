@@ -118,14 +118,12 @@ def get_entity_from_task_config(task_dict: dict):
     :param task_dict: a dictionary contains task config
     :return: a dictionary contains entity config
     """
-    entity_dict = dict()
-    entity_dict["Entity"] = dict()
-
+    entity_dict = {"Entity": {}}
     for task in list(task_dict.keys()):
         if "entities" in task_dict[task]:
             for entity in task_dict[task]["entities"]:
                 if entity not in entity_dict["Entity"]:
-                    entity_dict["Entity"][entity] = dict()
+                    entity_dict["Entity"][entity] = {}
                     if "type" in task_dict[task]["entities"][entity]:
                         entity_dict["Entity"][entity]["type"] = task_dict[task][
                             "entities"

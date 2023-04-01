@@ -43,9 +43,9 @@ class NERApplication:
     def run(self):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=self.max_workers))
         self.add_servicer_to_server(server)
-        server.add_insecure_port("[::]:" + str(self.grpc_port))
+        server.add_insecure_port(f"[::]:{str(self.grpc_port)}")
         server.start()
-        print("Starting server. Listening on port " + str(self.grpc_port))
+        print(f"Starting server. Listening on port {str(self.grpc_port)}")
         try:
             while True:
                 time.sleep(86400)
@@ -61,6 +61,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     predictor = NerPredictor(model_path=args.model_path)
-    logger.info("NER server is running on port {}.".format(8090))
+    logger.info('NER server is running on port 8090.')
     grpc_application = NERApplication(predictor=predictor)
     grpc_application.run()

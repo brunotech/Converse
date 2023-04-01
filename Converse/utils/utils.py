@@ -30,13 +30,13 @@ def combine_entity_words_into_span(words, nes):
     span = ""
     for word, tag in zip(words, nes):
         if tag == prev_tag:
-            span = span + " " + word
+            span = f"{span} {word}"
         else:
-            if prev_tag != "" and prev_tag != "O":
+            if prev_tag not in ["", "O"]:
                 spans[prev_tag].append(span)
             span = word
         prev_tag = tag
-    if prev_tag != "" and prev_tag != "O":
+    if prev_tag not in ["", "O"]:
         spans[prev_tag].append(span)
     # for loc
     loc = None

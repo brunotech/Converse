@@ -76,14 +76,13 @@ class MemoryDialogContextManager(DialogContextManager):
     ) -> DialogContext:
         if ctx_key in self.context_store:
             return self.context_store.get(ctx_key)
-        else:
-            ctx_value = DialogContext(
-                entity_config=entity_config,
-                task_config=task_config,
-                bot_config=bot_config,
-            )
-            self._set_ctx(ctx_key, ctx_value)
-            return ctx_value
+        ctx_value = DialogContext(
+            entity_config=entity_config,
+            task_config=task_config,
+            bot_config=bot_config,
+        )
+        self._set_ctx(ctx_key, ctx_value)
+        return ctx_value
 
     def reset_ctx(
         self,

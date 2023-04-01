@@ -96,13 +96,10 @@ class TreeManager:
         if not self.cur_node:
             return
         self.update_entity(None, False)
+        self.cur_node.current = self.cur_entity
         if self.prev_node:
             self.prev_node.current = None
-            self.cur_node.current = self.cur_entity
-            self.prev_node = self.cur_node
-        else:
-            self.cur_node.current = self.cur_entity
-            self.prev_node = self.cur_node
+        self.prev_node = self.cur_node
 
     @property
     def prev_task_finished(self):
@@ -143,8 +140,7 @@ class TreeManager:
         only for unit test
         """
         self.unit_test_leaf_handler(asr_out)
-        res = self.traverse()
-        if res:
+        if res := self.traverse():
             log.info(
                 "cur_task: %s,cur_node: %s, cur_entity: %s",
                 self.cur_task,
@@ -165,8 +161,6 @@ class TreeManager:
             self.update_entity("True")
         if asr_out == "no":
             self.update_entity("False", False)
-        if asr_out == "new task":
-            pass
 
     def traverse(self):
         """The traversal function for dialogue manager.
@@ -227,18 +221,16 @@ class TreeManager:
         if p_type == self.task_tree.and_node:
             for c in p.child:
                 c_node = p.child[c]
-                if c_node():  # c_node is successed
+                if c_node():
                     continue
-                else:  # c_node is failed
-                    if c_node in self.finished_node:  # c_node is seen
-                        self.finished_node.add(p)
-                        p.success = False
-                        self.cur_node = p
-                        self._switch_node()
-                        return
-                    else:  # c_node is unseen
-                        self.cur_node = c_node
-                        return
+                if c_node in self.finished_node:  # c_node is seen
+                    self.finished_node.add(p)
+                    p.success = False
+                    self.cur_node = p
+                    self._switch_node()
+                else:  # c_node is unseen
+                    self.cur_node = c_node
+                return
             # no avaliable node under current parent node
             self.finished_node.add(p)
             p.success = True
@@ -254,13 +246,11 @@ class TreeManager:
                     p.success = True
                     self.cur_node = p
                     self._switch_node()
-                    return
+                elif c_node in self.finished_node:
+                    continue
                 else:
-                    if c_node in self.finished_node:
-                        continue
-                    else:
-                        self.cur_node = c_node
-                        return
+                    self.cur_node = c_node
+                return
             self.finished_node.add(p)
             p.success = False
             self.cur_node = p
@@ -296,45 +286,40 @@ class TreeManager:
             for c in self.cur_node.child:
                 c_node = self.cur_node.child[c]
                 c_type = self.cur_node.child[c].__class__.__name__
-                if not c_node():
-                    if c_node not in self.finished_node:  # unseen and false
-                        if c_type == self.task_tree.leaf_node:
-                            self.cur_node = c_node
-                            self._next_entity()
-                            return True
-                        else:  # complex structure
-                            rec_flag = True
-                            self.cur_node = c_node
-                            self._set_entity()
-                            break
-                    else:  # seen and false
-                        self.cur_node.success = False
-                        self.finished_node.add(self.cur_node)
-                        return False
-                else:
+                if c_node():
                     continue
+                if c_node not in self.finished_node:  # unseen and false
+                    self.cur_node = c_node
+                    if c_type == self.task_tree.leaf_node:
+                        self._next_entity()
+                        return True
+                    else:  # complex structure
+                        rec_flag = True
+                        self._set_entity()
+                        break
+                else:  # seen and false
+                    self.cur_node.success = False
+                    self.finished_node.add(self.cur_node)
+                    return False
             if not rec_flag:
                 self.finished_node.add(self.cur_node)
             return False
-        # or node
         elif node_type == self.task_tree.or_node:
             rec_flag = False
             for c in self.cur_node.child:
                 c_node = self.cur_node.child[c]
                 c_type = self.cur_node.child[c].__class__.__name__
                 if not c_node():
-                    if c_node not in self.finished_node:  # unseen and false
-                        if c_type == self.task_tree.leaf_node:
-                            self.cur_node = c_node
-                            self._next_entity()
-                            return True
-                        else:  # complex structure
-                            rec_flag = True
-                            self.cur_node = c_node
-                            self._set_entity()
-                            break
-                    else:  # seen and false
+                    if c_node in self.finished_node:
                         continue
+                    self.cur_node = c_node
+                    if c_type == self.task_tree.leaf_node:
+                        self._next_entity()
+                        return True
+                    else:  # complex structure
+                        rec_flag = True
+                        self._set_entity()
+                        break
                 else:
                     self.cur_node.success = True
                     self.finished_node.add(self.cur_node)
@@ -342,7 +327,6 @@ class TreeManager:
             if not rec_flag:
                 self.finished_node.add(self.cur_node)
             return False
-        # leaf node
         elif node_type == self.task_tree.leaf_node:
             self._next_entity()
             return True
@@ -381,39 +365,29 @@ class TreeManager:
                 else:
                     if not self.cur_node.info[en]:
                         return True
-            self.finished_node.add(node)
-            return False
-        # when we don't have to verify all the entities,
-        # we may stay at the current node and go to next entity
         else:
             allow_cant_verify = len(self.cur_node.info) - self.cur_node.cnt
             unseen_entity_flag = False
             verified_entity = 0
             for en in node.info:
-                if not node.info[en]:
-                    if en in node.wrong:
-                        allow_cant_verify -= 1
-                        if allow_cant_verify < 0:
-                            self.finished_node.add(node)
-                            return False
-                    else:
-                        unseen_entity_flag = True
+                if en in node.wrong:
+                    allow_cant_verify -= 1
+                    if allow_cant_verify < 0:
+                        self.finished_node.add(node)
+                        return False
+                elif node.info[en]:
+                    verified_entity += 1
                 else:
-                    if en in node.wrong:
-                        allow_cant_verify -= 1
-                        if allow_cant_verify < 0:
-                            self.finished_node.add(node)
-                            return False
-                    else:
-                        verified_entity += 1
+                    unseen_entity_flag = True
             if verified_entity >= self.cur_node.cnt:
                 self.finished_node.add(node)
                 return False
             else:
                 if unseen_entity_flag:
                     return True
-            self.finished_node.add(node)
-            return False
+
+        self.finished_node.add(node)
+        return False
 
     def _next_entity(self):
         """Get next entity in current node.
@@ -431,11 +405,11 @@ class TreeManager:
         self.set_current_entity()
 
     def _parent_helper(self, task):
-        parent_dict = {}
         queue = deque([self.task_tree.root.child[task]])
         nextqueue = deque([])
         # bfs
         if task not in self.parent_dicts:
+            parent_dict = {}
             while queue:
                 node = queue.popleft()
                 node_type = node.__class__.__name__
@@ -535,7 +509,7 @@ class TreeManager:
                             unseen_flag = True
                     if not unseen_flag:
                         self.finished_node.add(node)
-        return True if node in self.finished_node else False
+        return node in self.finished_node
 
     def _level_helper(self, node):
         """A helper function for _finished_task()
@@ -555,14 +529,13 @@ class TreeManager:
             node = queue.popleft()
             if node():
                 self.finished_node.add(node)
-            else:
-                if node not in self.finished_node:
-                    if level not in level_dict:
-                        level_dict[level] = []
-                    level_dict[level].append(node)
-                    if node.__class__.__name__ != self.task_tree.leaf_node:
-                        for c in node.child:
-                            next_queue.append(node.child[c])
+            elif node not in self.finished_node:
+                if level not in level_dict:
+                    level_dict[level] = []
+                level_dict[level].append(node)
+                if node.__class__.__name__ != self.task_tree.leaf_node:
+                    for c in node.child:
+                        next_queue.append(node.child[c])
             if not queue:
                 queue = next_queue
                 next_queue = deque([])
@@ -631,9 +604,9 @@ if __name__ == "__main__":
             dm.set_task("check_order")
             dm.traverse()
             print(
-                "cur_task:" + str(dm.cur_task),
-                "cur_node:" + str(dm.cur_node),
-                "cur_entity:" + str(dm.cur_entity),
+                f"cur_task:{str(dm.cur_task)}",
+                f"cur_node:{str(dm.cur_node)}",
+                f"cur_entity:{str(dm.cur_entity)}",
             )
         else:
             dm.next(sent)

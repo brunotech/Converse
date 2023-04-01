@@ -16,7 +16,7 @@ def funcInch2Cm(entities, *argv, **kargs):
     entity_name = "inch"
     inch = float(entities[entity_name])
     cm = 2.54 * inch
-    return resp(True, "{} inch equals to {} centimeter".format(inch, cm))
+    return resp(True, f"{inch} inch equals to {cm} centimeter")
 
 
 @timeout(2.0)
@@ -53,17 +53,15 @@ def funcGetTVPlanPrice(entities, *argv, **kargs):
     entity_name = "new_tv_plan"
     tvplan = entities[entity_name]
     try:
-        return resp(
-            True, "the price of {} is {} dollar per year".format(tvplan, price[tvplan])
-        )
+        return resp(True, f"the price of {tvplan} is {price[tvplan]} dollar per year")
     except Exception:
-        return resp(False, msg="the price of {} is not avaiable".format(tvplan))
+        return resp(False, msg=f"the price of {tvplan} is not avaiable")
 
 
 @timeout(0.2)
 def collect_info(entities, *argv, **kargs):
     en_name = kargs["cur_entity_name"]
-    return resp(True, msg="Info collected: " + str(entities[en_name]))
+    return resp(True, msg=f"Info collected: {str(entities[en_name])}")
 
 
 @timeout(0.2)
@@ -78,10 +76,7 @@ def check_condition(entities, *argv, **kargs):
 @timeout(0.2)
 def check_condition_helpful(entities, *argv, **kargs):
     polarity = kargs["polarity"]
-    if polarity == 1:
-        return resp(True, msg="OK.")
-    else:
-        return resp(True, msg="All right.")
+    return resp(True, msg="OK.") if polarity == 1 else resp(True, msg="All right.")
 
 
 @timeout(0.2)
@@ -112,10 +107,7 @@ def create_appointment(entities, *argv, **kargs):
 
 @timeout(0.2)
 def search_departuring_flight(entities, *argv, **kargs):
-    msg = "Let's start with your departing flight. "
-    msg += "Here are the cheapest flights departing from {} to {} on {}:\n".format(
-        entities["origin"], entities["destination"], entities["start_date"]
-    )
+    msg = f"""Let's start with your departing flight. Here are the cheapest flights departing from {entities["origin"]} to {entities["destination"]} on {entities["start_date"]}:\n"""
     msg += "Oceanic 815, Depart at 4:16am, 800USD\n"
     msg += "Ajira 316, Depart at 15:42pm, 1500USD\n"
     msg += "Qantas 442, Depart at 23:08pm, 2300USD."
@@ -127,8 +119,10 @@ def search_departuring_flight(entities, *argv, **kargs):
 
 @timeout(0.2)
 def search_returning_flight(entities, *argv, **kargs):
-    msg = "And here are your returning flights:\n"
-    msg += "Oceanic 443, Depart at 4:16am, 800USD\n"
+    msg = (
+        "And here are your returning flights:\n"
+        + "Oceanic 443, Depart at 4:16am, 800USD\n"
+    )
     msg += "Ajira 232, Depart at 15:42pm, 1500USD\n"
     msg += "Qantas 424, Depart at 23:08pm, 2300USD."
     return resp(
@@ -145,7 +139,7 @@ def choose_flight_departing(entities, *argv, **kargs):
     )
     if not flight:
         flight = "Oceanic 815"
-    msg += "Your departing flight is {}. ".format(flight)
+    msg += f"Your departing flight is {flight}. "
     return resp(
         True,
         msg=msg,
@@ -199,7 +193,7 @@ def choose_flight_returning(entities, *argv, **kargs):
     )
     if not flight:
         flight = "Oceanic 443"
-    msg = "Alright, your returning flight is {}. ".format(flight)
+    msg = f"Alright, your returning flight is {flight}. "
     return resp(
         True,
         msg=msg,
@@ -214,16 +208,12 @@ def check_application_status_by_number(entities, *argv, **kargs):
     try:
         return resp(
             True,
-            'OK, your application {}, is currently "{}."'.format(
-                application_num, status[application_num]
-            ),
+            f'OK, your application {application_num}, is currently "{status[application_num]}."',
         )
     except Exception:
         return resp(
             False,
-            msg="Application {} is not available in the system.".format(
-                application_num
-            ),
+            msg=f"Application {application_num} is not available in the system.",
         )
 
 
@@ -235,7 +225,7 @@ def check_application_status_by_auth(entities, *argv, **kargs):
     try:
         return resp(
             True,
-            'OK, your application 1234456, is currently "{}"'.format(status[auth_code]),
+            f'OK, your application 1234456, is currently "{status[auth_code]}"',
         )
     except Exception:
         return resp(False, msg="The authentication is not valid")
@@ -289,7 +279,7 @@ def finish_booking_movie_tickets(entities, *argv, **kargs):
 @timeout(0.5)
 def get_name_and_welcome(entities, *argv, **kargs):
     first_name = entities["name"].split()[0]
-    return resp(True, msg="Hi, " + first_name)
+    return resp(True, msg=f"Hi, {first_name}")
 
 
 @timeout(0.5)
@@ -324,19 +314,9 @@ def get_remaining_balance(entities, *argv, **kargs):
 
 @timeout(0.5)
 def finish_order_tshirts(entities, *argv, **kargs):
-    color = entities["color"]
     size = entities["size"]
     front_text = entities["front_text"]
     back_text = entities["back_text"]
-    message = (
-        "A "
-        + color
-        + " "
-        + size
-        + " T-shirt with "
-        + front_text
-        + " on the front side and "
-        + back_text
-        + " on the back side. Your order is submitted. Thank you!"
-    )
+    color = entities["color"]
+    message = f"A {color} {size} T-shirt with {front_text} on the front side and {back_text} on the back side. Your order is submitted. Thank you!"
     return resp(True, msg=message)

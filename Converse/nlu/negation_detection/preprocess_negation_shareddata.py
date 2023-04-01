@@ -44,11 +44,10 @@ def load_train_data(train_path):
     cues = []
     scopes = []
 
-    line_co = 0
     sent_size = 0
     examples = []
     instance_size = 0
-    for line in readfile:
+    for line_co, line in enumerate(readfile):
         if line_co == 0:
             line_group = []
         elif len(line.strip()) > 0:
@@ -73,7 +72,7 @@ def load_train_data(train_path):
                         cue.append("0" if parts[7 + i * 3] == "_" else "1")
                         scope.append("0" if parts[8 + i * 3] == "_" else "1")
 
-                    guid = "train-" + str(instance_size)
+                    guid = f"train-{str(instance_size)}"
                     examples.append(
                         InputExample(
                             guid=guid,
@@ -99,7 +98,7 @@ def load_train_data(train_path):
                 # poses.append(pos)
                 # cues.append(cue)
                 # scopes.append(scope)
-                guid = "train-" + str(instance_size)
+                guid = f"train-{str(instance_size)}"
                 examples.append(
                     InputExample(
                         guid=guid,
@@ -111,7 +110,6 @@ def load_train_data(train_path):
                 instance_size += 1
             """create empty for next sentence"""
             line_group = []
-        line_co += 1
     readfile.close()
     print("load over, training size:", len(examples), "sent size:", sent_size + 1)
     return examples
@@ -128,9 +126,8 @@ def load_test_data(train_path, filelist):
     examples = []
     instance_size = 0
     for fil in filelist:
-        line_co = 0
-        readfile = codecs.open(train_path + "/" + fil, "r", "utf-8")
-        for line in readfile:
+        readfile = codecs.open(f"{train_path}/{fil}", "r", "utf-8")
+        for line_co, line in enumerate(readfile):
             if line_co == 0:
                 line_group = []
             elif len(line.strip()) > 0:
@@ -155,7 +152,7 @@ def load_test_data(train_path, filelist):
                             cue.append("0" if parts[7 + i * 3] == "_" else "1")
                             scope.append("0" if parts[8 + i * 3] == "_" else "1")
 
-                        guid = "train-" + str(instance_size)
+                        guid = f"train-{str(instance_size)}"
                         examples.append(
                             InputExample(
                                 guid=guid,
@@ -177,7 +174,7 @@ def load_test_data(train_path, filelist):
                         pos.append(parts[5])
                         cue.append("0")
                         scope.append("0")
-                    guid = "train-" + str(instance_size)
+                    guid = f"train-{str(instance_size)}"
                     examples.append(
                         InputExample(
                             guid=guid,
@@ -189,7 +186,6 @@ def load_test_data(train_path, filelist):
                     instance_size += 1
                 """create empty for next sentence"""
                 line_group = []
-            line_co += 1
         readfile.close()
     print("load over, test size:", len(examples), "sent size:", sent_size + 1)
     return examples
@@ -253,25 +249,22 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                     cue_labels.append(label_cue_i)
                     scope_labels.append(label_scope_i)
                     label_mask.append(1)
-                    """subtoken level"""
                     valid.append(1)
                 else:
-                    """subtoken level"""
                     valid.append(0)
+                """subtoken level"""
         if len(tokens) >= max_seq_length - 1:
-            tokens = tokens[0 : (max_seq_length - 2)]
-            valid = valid[0 : (max_seq_length - 2)]
-            cue_labels = cue_labels[0 : (max_seq_length - 2)]
-            scope_labels = scope_labels[0 : (max_seq_length - 2)]
-            label_mask = label_mask[0 : (max_seq_length - 2)]
+            tokens = tokens[:max_seq_length - 2]
+            valid = valid[:max_seq_length - 2]
+            cue_labels = cue_labels[:max_seq_length - 2]
+            scope_labels = scope_labels[:max_seq_length - 2]
+            label_mask = label_mask[:max_seq_length - 2]
 
-        ntokens = []
-        segment_ids = []
         cue_label_ids = []
         scope_label_ids = []
         """add special token in the beginning"""
-        ntokens.append("[CLS]")
-        segment_ids.append(0)
+        ntokens = ["[CLS]"]
+        segment_ids = [0]
         # cue_label_ids.append(label_map["[CLS]"])
         # scope_label_ids.append(label_map["[CLS]"])
         """#we do not think the pad token is valid to train"""
@@ -326,13 +319,13 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
 
         if ex_index < 5:
             logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            # logger.info("cue_labels: %s (id = %d)" % (example.cue_labels, cue_label_ids))
-            # logger.info("scope_labels: %s (id = %d)" % (example.scope_labels, scope_label_ids))
+            logger.info(f"guid: {example.guid}")
+            logger.info(f'tokens: {" ".join([str(x) for x in tokens])}')
+            logger.info(f'input_ids: {" ".join([str(x) for x in input_ids])}')
+            logger.info(f'input_mask: {" ".join([str(x) for x in input_mask])}')
+            logger.info(f'segment_ids: {" ".join([str(x) for x in segment_ids])}')
+                    # logger.info("cue_labels: %s (id = %d)" % (example.cue_labels, cue_label_ids))
+                    # logger.info("scope_labels: %s (id = %d)" % (example.scope_labels, scope_label_ids))
 
         features.append(
             InputFeatures(

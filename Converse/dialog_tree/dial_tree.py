@@ -231,10 +231,7 @@ class TaskTree:
 
             elif ntype in self.entity_types:
                 info = data[ntype][0].split("#")  # entity name, cnt
-                if len(info) > 1 and info[1].isdigit():
-                    num = int(info[1])
-                else:
-                    num = 0
+                num = int(info[1]) if len(info) > 1 and info[1].isdigit() else 0
                 node = Leaf(info[0], ntype, num)
                 value = self._tasks_config[task].entity_groups[info[0]]
                 paths[info[0]] = {}
@@ -270,7 +267,7 @@ class TaskTree:
                         new_data, new_type, paths[str(i)]
                     )  # add child node
             else:
-                raise ValueError("Not a valid ntype: %s" % ntype)
+                raise ValueError(f"Not a valid ntype: {ntype}")
             return node
 
         self.root.child[task] = build(
@@ -283,14 +280,14 @@ class TaskTree:
             self.tasks[task] = self._tasks_config[task].copy()
 
     def get_samples(self):
-        samples = {}
-        for task in self._tasks_config:
-            samples[task] = (
+        return {
+            task: (
                 self._tasks_config[task].samples
                 if "samples" in self._tasks_config[task]
                 else []
             )
-        return samples
+            for task in self._tasks_config
+        }
 
     def get_description(self, task: str):
         return self._tasks_config[task].description
@@ -300,7 +297,7 @@ class TaskTree:
 
         def build_task_paths(node, paths, depth):
             ntype = node.__class__.__name__
-            if ntype == "OrNode" or ntype == "AndNode":
+            if ntype in ["OrNode", "AndNode"]:
                 for c in node.child:
                     cnode = node.child[c]
                     ctype = cnode.__class__.__name__
@@ -310,24 +307,18 @@ class TaskTree:
                         new_type = "success" if cnode.success else ctype
                         paths.append(
                             {
-                                "name": "(Task) " + cnode.name,
+                                "name": f"(Task) {cnode.name}",
                                 "parent": node.name,
                                 "type": new_type,
                             }
                         )
                     else:
                         if ctype == "Leaf":
-                            if cnode.cnt > 0:
-                                new_name = (
-                                    "(OR "
-                                    + str(cnode.cnt)
-                                    + ") "
-                                    + cnode.tag
-                                    + " "
-                                    + cnode.name
-                                )
-                            else:
-                                new_name = cnode.tag + " " + cnode.name
+                            new_name = (
+                                f"(OR {str(cnode.cnt)}) {cnode.tag} {cnode.name}"
+                                if cnode.cnt > 0
+                                else f"{cnode.tag} {cnode.name}"
+                            )
                             new_children = []
                             for en in cnode.expand:
                                 if en in cnode.verified:
@@ -341,21 +332,18 @@ class TaskTree:
                                         "type": "success",
                                     }
                                 elif en in cnode.wrong:
-                                    if not cnode.info[en]:
-                                        new_child_info = {
-                                            "name": en,
-                                            "parent": cnode.name,
-                                        }
-                                    else:
-                                        new_child_info = {
-                                            "name": en
-                                            + ": "
-                                            + extract_display_value_from_entity(
-                                                cnode.info[en]
-                                            ),
+                                    new_child_info = (
+                                        {
+                                            "name": f"{en}: {extract_display_value_from_entity(cnode.info[en])}",
                                             "parent": cnode.name,
                                             "type": "failed",
                                         }
+                                        if cnode.info[en]
+                                        else {
+                                            "name": en,
+                                            "parent": cnode.name,
+                                        }
+                                    )
                                 else:
                                     new_child_info = {"name": en, "parent": cnode.name}
                                 if en == cnode.current:
@@ -388,12 +376,12 @@ class TaskTree:
                                         "children": new_children,
                                     }
                                 )
-                        elif ctype == "OrNode" or ctype == "AndNode":
+                        elif ctype in ["OrNode", "AndNode"]:
                             new_type = "success" if cnode.success else ctype
                             if ctype == "OrNode":
-                                new_node_name = "(OR) " + cnode.name
+                                new_node_name = f"(OR) {cnode.name}"
                             else:
-                                new_node_name = "(AND) " + cnode.name
+                                new_node_name = f"(AND) {cnode.name}"
                             paths.append(
                                 {
                                     "name": new_node_name,
@@ -413,9 +401,9 @@ class TaskTree:
             )
             node_name = task
             if self.root.child[task].__class__.__name__ == "OrNode":
-                node_name = "(OR) " + task
+                node_name = f"(OR) {task}"
             elif self.root.child[task].__class__.__name__ == "AndNode":
-                node_name = "(AND) " + task
+                node_name = f"(AND) {task}"
             self.visualization_paths[task] = {
                 "name": node_name,
                 "parent": "root",

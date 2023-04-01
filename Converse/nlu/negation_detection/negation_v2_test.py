@@ -40,9 +40,7 @@ if __name__ == "__main__":
 
         print("Input sentence = " + "'" + sent + "'")
         print("Words(word index|word):")
-        numbered_words = ""
-        for i, word in enumerate(words):
-            numbered_words += "[" + str(i) + "]" + word + "|"
+        numbered_words = "".join(f"[{str(i)}]{word}|" for i, word in enumerate(words))
         print(numbered_words.strip("|"))
         for triplet in triplets:
             if triplet[0] == -1:
@@ -51,7 +49,7 @@ if __name__ == "__main__":
                 print("Triplet: ", triplet)
                 print("Negation word: ", words[triplet[0]])
                 print("Scope: " + " ".join(words[triplet[1]: triplet[2]]))
-        print("Time spent (in millisecond): " + str(1000 * time_spent))
+        print(f"Time spent (in millisecond): {str(1000 * time_spent)}")
         print("\n")
     print("\n")
 

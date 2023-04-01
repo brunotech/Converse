@@ -148,7 +148,7 @@ def create_masked_lm_predictions(
     with several refactors to clean it up and remove a lot of unnecessary variables."""
     cand_indices = []
     for (i, token) in enumerate(tokens):
-        if token == "[CLS]" or token == "[SEP]":
+        if token in ["[CLS]", "[SEP]"]:
             continue
         # Whole Word Masking means that if we mask all of the wordpieces
         # corresponding to an original word. When a word has been split into
@@ -159,7 +159,7 @@ def create_masked_lm_predictions(
         # Note that Whole Word Masking does *not* change the training code
         # at all -- we still predict each WordPiece independently, softmaxed
         # over the entire vocabulary.
-        if whole_word_mask and len(cand_indices) >= 1 and token.startswith("##"):
+        if whole_word_mask and cand_indices and token.startswith("##"):
             cand_indices[-1].append(i)
         else:
             cand_indices.append([i])
@@ -177,11 +177,7 @@ def create_masked_lm_predictions(
         # predictions, then just skip this candidate.
         if len(masked_lms) + len(index_set) > num_to_mask:
             continue
-        is_any_index_covered = False
-        for index in index_set:
-            if index in covered_indexes:
-                is_any_index_covered = True
-                break
+        is_any_index_covered = any(index in covered_indexes for index in index_set)
         if is_any_index_covered:
             continue
         for index in index_set:
@@ -192,11 +188,7 @@ def create_masked_lm_predictions(
                 masked_token = "[MASK]"
             else:
                 # 10% of the time, keep original
-                if random() < 0.5:
-                    masked_token = tokens[index]
-                # 10% of the time, replace with random word
-                else:
-                    masked_token = choice(vocab_list)
+                masked_token = tokens[index] if random() < 0.5 else choice(vocab_list)
             masked_lms.append(MaskedLmInstance(index=index, label=tokens[index]))
             tokens[index] = masked_token
 
@@ -290,14 +282,14 @@ def create_instances_from_document(
                     for j in range(a_end, len(current_chunk)):
                         tokens_b.extend(current_chunk[j])
 
-                if not tokens_a or len(tokens_a) == 0:
+                if not tokens_a:
                     tokens_a = ["."]
 
-                if not tokens_b or len(tokens_b) == 0:
+                if not tokens_b:
                     tokens_b = ["."]
 
-                assert len(tokens_a) >= 1
-                assert len(tokens_b) >= 1
+                assert tokens_a
+                assert tokens_b
 
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
 
@@ -337,7 +329,7 @@ def create_instances_from_document(
 
 
 def create_training_file(docs, vocab_list, args, epoch_num, bi_text=True):
-    epoch_filename = args.output_dir / "epoch_{}.json".format(epoch_num)
+    epoch_filename = args.output_dir / f"epoch_{epoch_num}.json"
     num_instances = 0
     with epoch_filename.open("w") as epoch_file:
         for doc_idx in trange(len(docs), desc="Document"):
@@ -356,7 +348,7 @@ def create_training_file(docs, vocab_list, args, epoch_num, bi_text=True):
             for instance in doc_instances:
                 epoch_file.write(instance + "\n")
                 num_instances += 1
-    metrics_filename = args.output_dir / "epoch_{}_metrics.json".format(epoch_num)
+    metrics_filename = args.output_dir / f"epoch_{epoch_num}_metrics.json"
     with metrics_filename.open("w") as metrics_file:
         metrics = {
             "num_training_examples": num_instances,
@@ -438,7 +430,7 @@ def main():
                     doc = []
                     doc_num += 1
                     if doc_num % 100 == 0:
-                        logger.info("loaded {} docs!".format(doc_num))
+                        logger.info(f"loaded {doc_num} docs!")
                 else:
                     tokens = tokenizer.tokenize(line)
                     doc.append(tokens)
@@ -465,7 +457,7 @@ def main():
             writer_workers.starmap(create_training_file, arguments)
         else:
             for epoch in trange(args.epochs_to_generate, desc="Epoch"):
-                bi_text = True if not args.one_seq else False
+                bi_text = not args.one_seq
                 epoch_file, metric_file = create_training_file(
                     docs, vocab_list, args, epoch, bi_text=bi_text
                 )

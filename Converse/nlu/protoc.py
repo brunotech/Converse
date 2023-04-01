@@ -16,7 +16,7 @@ class Protoc(Command):
     user_options = []
 
     def run(self):
-        print("Building protobuf files from directory:", str(os.getcwd()))
+        print("Building protobuf files from directory:", os.getcwd())
 
         for root, _, filenames in os.walk(""):
             for filename in filenames:
@@ -50,7 +50,7 @@ class Protoc(Command):
     def _compile_proto_if_new(path):
         if Protoc._proto_is_new_or_changed(path):
             print("Compiling {:s}".format(path))
-            print("Cur dir:", str(os.getcwd()))
+            print("Cur dir:", os.getcwd())
             # This is for a cleaner requirements.txt
             from grpc_tools import protoc
 

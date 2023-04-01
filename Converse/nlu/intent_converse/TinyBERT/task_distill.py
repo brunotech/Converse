@@ -115,7 +115,7 @@ class DataProcessor(object):
             lines = []
             for line in reader:
                 if sys.version_info[0] == 2:
-                    line = list(unicode(cell, "utf-8") for cell in line)
+                    line = [unicode(cell, "utf-8") for cell in line]
                 lines.append(line)
             return lines
 
@@ -150,7 +150,7 @@ class MrpcProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, i)
+            guid = f"{set_type}-{i}"
             text_a = line[3]
             text_b = line[4]
             label = line[0]
@@ -190,7 +190,7 @@ class MnliProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, line[0])
+            guid = f"{set_type}-{line[0]}"
             text_a = line[8]
             text_b = line[9]
             label = line[-1]
@@ -238,7 +238,7 @@ class ColaProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
-            guid = "%s-%s" % (set_type, i)
+            guid = f"{set_type}-{i}"
             text_a = line[3]
             label = line[1]
             examples.append(
@@ -277,7 +277,7 @@ class Sst2Processor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, i)
+            guid = f"{set_type}-{i}"
             text_a = line[0]
             label = line[1]
             examples.append(
@@ -316,7 +316,7 @@ class StsbProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, line[0])
+            guid = f"{set_type}-{line[0]}"
             text_a = line[7]
             text_b = line[8]
             label = line[-1]
@@ -356,7 +356,7 @@ class QqpProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, line[0])
+            guid = f"{set_type}-{line[0]}"
             try:
                 text_a = line[3]
                 text_b = line[4]
@@ -399,7 +399,7 @@ class QnliProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, line[0])
+            guid = f"{set_type}-{line[0]}"
             text_a = line[1]
             text_b = line[2]
             label = line[-1]
@@ -439,7 +439,7 @@ class RteProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, line[0])
+            guid = f"{set_type}-{line[0]}"
             text_a = line[1]
             text_b = line[2]
             label = line[-1]
@@ -474,7 +474,7 @@ class WnliProcessor(DataProcessor):
         for (i, line) in enumerate(lines):
             if i == 0:
                 continue
-            guid = "%s-%s" % (set_type, line[0])
+            guid = f"{set_type}-{line[0]}"
             text_a = line[1]
             text_b = line[2]
             label = line[-1]
@@ -502,9 +502,8 @@ def convert_examples_to_features(
         if example.text_b:
             tokens_b = tokenizer.tokenize(example.text_b)
             _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
-        else:
-            if len(tokens_a) > max_seq_length - 2:
-                tokens_a = tokens_a[: (max_seq_length - 2)]
+        elif len(tokens_a) > max_seq_length - 2:
+            tokens_a = tokens_a[: (max_seq_length - 2)]
 
         tokens = ["[CLS]"] + tokens_a + ["[SEP]"]
         segment_ids = [0] * len(tokens)
@@ -535,13 +534,13 @@ def convert_examples_to_features(
 
         if ex_index < 1:
             logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            logger.info("label: {}".format(example.label))
-            logger.info("label_id: {}".format(label_id))
+            logger.info(f"guid: {example.guid}")
+            logger.info(f'tokens: {" ".join([str(x) for x in tokens])}')
+            logger.info(f'input_ids: {" ".join([str(x) for x in input_ids])}')
+            logger.info(f'input_mask: {" ".join([str(x) for x in input_mask])}')
+            logger.info(f'segment_ids: {" ".join([str(x) for x in segment_ids])}')
+            logger.info(f"label: {example.label}")
+            logger.info(f"label_id: {label_id}")
 
         features.append(
             InputFeatures(
@@ -665,7 +664,7 @@ def do_eval(
 
         eval_loss += tmp_eval_loss.mean().item()
         nb_eval_steps += 1
-        if len(preds) == 0:
+        if not preds:
             preds.append(logits.detach().cpu().numpy())
         else:
             preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis=0)
@@ -874,12 +873,15 @@ def main():
     if task_name in default_params:
         args.max_seq_len = default_params[task_name]["max_seq_length"]
 
-    if not args.pred_distill and not args.do_eval:
-        if task_name in default_params:
-            args.num_train_epoch = default_params[task_name]["num_train_epochs"]
+    if (
+        not args.pred_distill
+        and not args.do_eval
+        and task_name in default_params
+    ):
+        args.num_train_epoch = default_params[task_name]["num_train_epochs"]
 
     if task_name not in processors:
-        raise ValueError("Task not found: %s" % task_name)
+        raise ValueError(f"Task not found: {task_name}")
 
     processor = processors[task_name]()
     output_mode = output_modes[task_name]
@@ -891,10 +893,11 @@ def main():
     )
 
     if not args.do_eval:
-        if not args.aug_train:
-            train_examples = processor.get_train_examples(args.data_dir)
-        else:
-            train_examples = processor.get_aug_examples(args.data_dir)
+        train_examples = (
+            processor.get_aug_examples(args.data_dir)
+            if args.aug_train
+            else processor.get_train_examples(args.data_dir)
+        )
         if args.gradient_accumulation_steps < 1:
             raise ValueError(
                 "Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
@@ -982,13 +985,17 @@ def main():
         optimizer_grouped_parameters = [
             {
                 "params": [
-                    p for n, p in param_optimizer if not any(nd in n for nd in no_decay)
+                    p
+                    for n, p in param_optimizer
+                    if all(nd not in n for nd in no_decay)
                 ],
                 "weight_decay": 0.01,
             },
             {
                 "params": [
-                    p for n, p in param_optimizer if any(nd in n for nd in no_decay)
+                    p
+                    for n, p in param_optimizer
+                    if any(nd in n for nd in no_decay)
                 ],
                 "weight_decay": 0.0,
             },
@@ -1187,8 +1194,8 @@ def main():
                         if args.pred_distill and task_name == "mnli":
                             task_name = "mnli-mm"
                             processor = processors[task_name]()
-                            if not os.path.exists(args.output_dir + "-MM"):
-                                os.makedirs(args.output_dir + "-MM")
+                            if not os.path.exists(f"{args.output_dir}-MM"):
+                                os.makedirs(f"{args.output_dir}-MM")
 
                             eval_examples = processor.get_dev_examples(args.data_dir)
 
@@ -1227,7 +1234,7 @@ def main():
                             result["global_step"] = global_step
 
                             tmp_output_eval_file = os.path.join(
-                                args.output_dir + "-MM", "eval_results.txt"
+                                f"{args.output_dir}-MM", "eval_results.txt"
                             )
                             result_to_file(result, tmp_output_eval_file)
 
