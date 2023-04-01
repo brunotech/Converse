@@ -65,17 +65,15 @@ class EntityHistoryManager(object):
             if type(entity) == entity_type:
                 return [entity]
 
-        turns = self.history.keys() if not turns else turns
+        turns = turns or self.history.keys()
 
         # grab all entities belonging to the specified turns
         entities_by_turn = set()
         for turn in turns:
             for entity in self.history[turn]:
-                if type(entity) == entity_type:
-                    if isinstance(entity, PickListEntity) or isinstance(
-                        entity, UserUttEntity
-                    ):
-                        continue
+                if type(entity) == entity_type and not isinstance(
+                    entity, (PickListEntity, UserUttEntity)
+                ):
                     entities_by_turn.add(entity)
 
         # create a dictionary of (value, entity)

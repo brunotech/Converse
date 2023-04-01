@@ -16,9 +16,7 @@ class TestTaskTree(unittest.TestCase):
 
         self.tree_fname = os.path.join(os.path.dirname(__file__), "test_task_tree.yaml")
         self.tree = TaskTree(TaskConfig(self.tree_fname))
-        self.recursion_error_message = str(
-            "Task dependency cycle detected. Please check your task configuration file!"
-        )
+        self.recursion_error_message = "Task dependency cycle detected. Please check your task configuration file!"
 
     def test_simple_build_subtree(self):
 
@@ -27,7 +25,7 @@ class TestTaskTree(unittest.TestCase):
         self.assertFalse(self.tree.root.success)
         self.assertEqual(self.tree.root.name, "root")
         self.assertSetEqual(
-            set(self.tree.root.child.keys()), set(["user_security_question"])
+            set(self.tree.root.child.keys()), {"user_security_question"}
         )
 
         self.assertDictEqual(
@@ -40,7 +38,7 @@ class TestTaskTree(unittest.TestCase):
             },
         )
         self.assertListEqual(self.tree.task_order, ["user_security_question"])
-        self.assertSetEqual(self.tree.task_set, set(["user_security_question"]))
+        self.assertSetEqual(self.tree.task_set, {"user_security_question"})
 
     def test_complex_build_subtree(self):
 
@@ -49,7 +47,7 @@ class TestTaskTree(unittest.TestCase):
         self.assertEqual(self.tree.root.name, "root")
         self.assertSetEqual(
             set(self.tree.root.child.keys()),
-            set(["user_login", "user_security_question"]),
+            {"user_login", "user_security_question"},
         )
 
         self.assertDictEqual(
@@ -71,7 +69,7 @@ class TestTaskTree(unittest.TestCase):
             self.tree.task_order, ["user_login", "user_security_question"]
         )
         self.assertSetEqual(
-            self.tree.task_set, set(["user_login", "user_security_question"])
+            self.tree.task_set, {"user_login", "user_security_question"}
         )
 
     def test_task_tree_validator_1(self):

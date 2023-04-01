@@ -109,17 +109,16 @@ class DialoguePolicy:
                     ops = op.split()
                     for i in range(len(ops)):
                         if ops[i] in self.policy_flags:
-                            ops[i] = "cur_turn_states." + ops[i]
+                            ops[i] = f"cur_turn_states.{ops[i]}"
                         elif ops[i] in self.policy_states:
-                            ops[i] = "ctx.cur_states." + ops[i]
+                            ops[i] = f"ctx.cur_states.{ops[i]}"
                     ops = " ".join(ops)
                     ctx.policy_map[op] = ops
                 if eval(ops):
                     log.info("%s is True", ops)
-                    res = self.policy_tree(
+                    if res := self.policy_tree(
                         node[op], ctx=ctx, cur_turn_states=cur_turn_states
-                    )  # dfs
-                    if res:
+                    ):
                         return res
                 else:
                     log.info("%s is False", ops)
@@ -127,10 +126,9 @@ class DialoguePolicy:
             elif isinstance(node, str):  # dialogue actions
                 if node != "PASS":
                     log.info("executing %s", node)
-                    res = eval(
-                        "self." + node + "(ctx=ctx, cur_turn_states=cur_turn_states)"
-                    )
-                    if res:
+                    if res := eval(
+                        f"self.{node}(ctx=ctx, cur_turn_states=cur_turn_states)"
+                    ):
                         return res
 
     def _set_state_for_confirm_task(
@@ -165,108 +163,90 @@ class DialoguePolicy:
     ) -> str:
         if not model:
             response_tmp = self._set_task(ctx)
-            if ctx.cur_states.agent_action_type != "INFORM":
-                if not ctx.repeat:
-                    candidates = self._get_entity_candidates_from_history(ctx)
-                    if candidates:
-                        response_tmp += " " + self.entity_info_handler(
-                            ctx, cur_turn_states, candidates=candidates
-                        )
-                    else:
-                        response_tmp += " " + self.response.ask_info(
-                            ctx.cur_states.cur_task,
-                            ctx.cur_states.cur_entity_name,
-                        )
-                else:
-                    response_tmp += " " + self.response.ask_info(
-                        ctx.cur_states.cur_task,
-                        ctx.cur_states.cur_entity_name,
-                    )
-            else:  # inform
+            if ctx.cur_states.agent_action_type == "INFORM":  # inform
                 response_tmp = self._inform_user(ctx, cur_turn_states)
                 ctx.reset_update()
+            elif not ctx.repeat and (
+                candidates := self._get_entity_candidates_from_history(ctx)
+            ):
+                response_tmp += f" {self.entity_info_handler(ctx, cur_turn_states, candidates=candidates)}"
+            else:
+                response_tmp += f" {self.response.ask_info(ctx.cur_states.cur_task, ctx.cur_states.cur_entity_name)}"
             return response_tmp
 
     def new_task_with_info(
         self, ctx: DialogContext, cur_turn_states: StatesWithinCurrentTurn, model=False
     ) -> str:
-        if not model:
-            main_task = ctx.cur_states.new_task
-            response_tmp = self._set_task(ctx)
+        if model:
+            return
+        main_task = ctx.cur_states.new_task
+        response_tmp = self._set_task(ctx)
 
-            # find out methods to extract entities
-            methods = self.entity_manager.get_extraction_methods(
-                ctx.cur_states.cur_entity_name,
-            )
+        # find out methods to extract entities
+        methods = self.entity_manager.get_extraction_methods(
+            ctx.cur_states.cur_entity_name,
+        )
 
-            entity_classes = self.entity_manager.get_entity_classes(
-                ctx.cur_states.cur_entity_name,
-            )
+        entity_classes = self.entity_manager.get_entity_classes(
+            ctx.cur_states.cur_entity_name,
+        )
 
-            if cur_turn_states.got_ner and (
-                "USER_UTT" in ctx.cur_states.cur_entity_types
-                or "PICKLIST" in ctx.cur_states.cur_entity_types
-            ):
-                """
+        if cur_turn_states.got_ner and (
+            "USER_UTT" in ctx.cur_states.cur_entity_types
+            or "PICKLIST" in ctx.cur_states.cur_entity_types
+        ):
+            """
                 Sometimes, this dialogue action is triggered by intent plus NER info
                 when the intent doesn't actually need NER info. For "USER_UTT"
                 and "PICKLIST" entities, we want to skip entity extraction here.
                 """
-                entity_candidates = []
+            entity_candidates = []
+        else:
+            # extract entities again now that we have updated the methods
+            entity_candidates = self.entity_manager.extract_entities(
+                utterance=ctx.user_response,
+                methods=methods,
+                ner_model_output=cur_turn_states.extracted_info["ner"],
+                entity_types=entity_classes,
+            )
+
+        for entity in entity_candidates:
+            ctx.entity_history_manager.insert(entity, ctx.turn)
+
+        # filter extracted entity by its type
+        cur_turn_states.entity_candidates = entity_candidates = [
+            entity for entity in entity_candidates if type(entity) in entity_classes
+        ]
+
+        if not ctx.repeat:
+            history_candidates = self._get_entity_candidates_from_history(ctx)
+            entity_candidates.extend(history_candidates)
+        if ctx.cur_states.cur_task == main_task:  # no sub_task
+            if entity_response := self.entity_info_handler(
+                ctx, cur_turn_states, entity_candidates
+            ):
+                response_tmp += f" {entity_response}"
+            elif ctx.cur_states.agent_action_type != "INFORM":
+                response_tmp += f" {self.response.ask_info(ctx.cur_states.cur_task, ctx.cur_states.cur_entity_name)}"
             else:
-                # extract entities again now that we have updated the methods
-                entity_candidates = self.entity_manager.extract_entities(
-                    utterance=ctx.user_response,
-                    methods=methods,
-                    ner_model_output=cur_turn_states.extracted_info["ner"],
-                    entity_types=entity_classes,
+                response_tmp = self._inform_user(ctx, cur_turn_states)
+                ctx.reset_update()
+        else:
+            ctx.cur_states.task_with_info = (
+                main_task,
+                len(ctx.user_history.user_utt_norm) - 1,
+            )
+            self.state_manager.receive_info_from_policy(ctx)
+            if ctx.cur_states.agent_action_type != "INFORM":
+                response_tmp += (
+                    f" {self.entity_info_handler(ctx, cur_turn_states, candidates=entity_candidates)}"
+                    if entity_candidates
+                    else f" {self.response.ask_info(ctx.cur_states.cur_task, ctx.cur_states.cur_entity_name)}"
                 )
-
-            for entity in entity_candidates:
-                ctx.entity_history_manager.insert(entity, ctx.turn)
-
-            # filter extracted entity by its type
-            cur_turn_states.entity_candidates = entity_candidates = [
-                entity for entity in entity_candidates if type(entity) in entity_classes
-            ]
-
-            if not ctx.repeat:
-                history_candidates = self._get_entity_candidates_from_history(ctx)
-                entity_candidates.extend(history_candidates)
-            if ctx.cur_states.cur_task == main_task:  # no sub_task
-                entity_response = self.entity_info_handler(
-                    ctx, cur_turn_states, entity_candidates
-                )
-                if entity_response:
-                    response_tmp += " " + entity_response
-                elif ctx.cur_states.agent_action_type != "INFORM":
-                    response_tmp += " " + self.response.ask_info(
-                        ctx.cur_states.cur_task,
-                        ctx.cur_states.cur_entity_name,
-                    )
-                else:  # inform
-                    response_tmp = self._inform_user(ctx, cur_turn_states)
-                    ctx.reset_update()
-            else:
-                ctx.cur_states.task_with_info = (
-                    main_task,
-                    len(ctx.user_history.user_utt_norm) - 1,
-                )
-                self.state_manager.receive_info_from_policy(ctx)
-                if ctx.cur_states.agent_action_type != "INFORM":
-                    if not entity_candidates:
-                        response_tmp += " " + self.response.ask_info(
-                            ctx.cur_states.cur_task,
-                            ctx.cur_states.cur_entity_name,
-                        )
-                    else:
-                        response_tmp += " " + self.entity_info_handler(
-                            ctx, cur_turn_states, candidates=entity_candidates
-                        )
-                else:  # inform
-                    response_tmp = self._inform_user(ctx, cur_turn_states)
-                    ctx.reset_update()
-            return response_tmp
+            else:  # inform
+                response_tmp = self._inform_user(ctx, cur_turn_states)
+                ctx.reset_update()
+        return response_tmp
 
     def _set_task(self, ctx: DialogContext) -> str:
         # send info to state manager
@@ -275,23 +255,22 @@ class DialoguePolicy:
         self.state_manager.receive_info_from_policy(ctx)
         # generate response
         main_task = ctx.cur_states.new_task
-        if not ctx.cur_states.cur_task:
-            response_tmp = self.response.got_intent(
-                self.task_config[ctx.cur_states.new_task].description
-            )
-        else:
-            response_tmp = self.response.got_intent(
+        response_tmp = (
+            self.response.got_intent(
                 self.task_config[ctx.cur_states.new_task].description,
                 first=False,
             )
+            if ctx.cur_states.cur_task
+            else self.response.got_intent(
+                self.task_config[ctx.cur_states.new_task].description
+            )
+        )
         # entity and sub_task
         self.state_manager.update_and_get_states(ctx)
         assert ctx.cur_states.cur_task
         assert ctx.cur_states.cur_entity_name
         if ctx.cur_states.cur_task != main_task:  # sub_task
-            response_tmp += " " + self.response.got_sub_task(
-                self.task_config[ctx.cur_states.cur_task].description
-            )
+            response_tmp += f" {self.response.got_sub_task(self.task_config[ctx.cur_states.cur_task].description)}"
         return response_tmp
 
     def task_confirm_handler(
@@ -310,42 +289,45 @@ class DialoguePolicy:
         the repeatable task will be abandoned;
         else the repeatable task and the new uncertain intent will both be abandoned
         """
-        if not model:
-            if cur_turn_states.polarity == 1:  # confirmed the unconfirmed task
-                ctx.cur_states.new_task = ctx.cur_states.unconfirmed_intent.pop()
-                if ctx.cur_states.unconfirmed_intent:
-                    cur_turn_states.polarity = 0
-                    cur_turn_states.got_intent = ctx.cur_states.prev_turn_got_intent
-                    return self.task_confirm_handler(ctx, cur_turn_states)
-                else:
-                    if cur_turn_states.got_entity_info:
-                        return self.new_task_with_info(ctx, cur_turn_states)
-                    return self.got_new_task(ctx, cur_turn_states)
-            else:  # refused the unconfirmed task
-                if len(ctx.cur_states.unconfirmed_intent) >= 2:
-                    ctx.cur_states.unconfirmed_intent.pop()
-                if ctx.repeat:
-                    ctx.repeat = False
-                if cur_turn_states.got_intent:
-                    if cur_turn_states.got_entity_info:
-                        return self.new_task_with_info(ctx, cur_turn_states)
-                    return self.got_new_task(ctx, cur_turn_states)
-                else:
-                    ctx.cur_states.confirm_intent = False
-                    ctx.cur_states.unconfirmed_intent.pop()
-                    if ctx.cur_states.cur_task and ctx.cur_states.cur_entity_name:
-                        if ctx.cur_states.agent_action_type != "INFORM":
-                            response_tmp = self.response.ask_info(
-                                ctx.cur_states.cur_task,
-                                ctx.cur_states.cur_entity_name,
-                            )
-                        else:  # inform
-                            response_tmp = self._inform_user(ctx, cur_turn_states)
-                        ctx.reset_update()
-                        return response_tmp
-                    else:
-                        ctx.cur_states.confirm_continue = True
-                        return self.response.confirm_finish()
+        if model:
+            return
+        if cur_turn_states.polarity == 1:  # confirmed the unconfirmed task
+            ctx.cur_states.new_task = ctx.cur_states.unconfirmed_intent.pop()
+            if not ctx.cur_states.unconfirmed_intent:
+                return (
+                    self.new_task_with_info(ctx, cur_turn_states)
+                    if cur_turn_states.got_entity_info
+                    else self.got_new_task(ctx, cur_turn_states)
+                )
+            cur_turn_states.polarity = 0
+            cur_turn_states.got_intent = ctx.cur_states.prev_turn_got_intent
+            return self.task_confirm_handler(ctx, cur_turn_states)
+        else:  # refused the unconfirmed task
+            if len(ctx.cur_states.unconfirmed_intent) >= 2:
+                ctx.cur_states.unconfirmed_intent.pop()
+            if ctx.repeat:
+                ctx.repeat = False
+            if cur_turn_states.got_intent:
+                return (
+                    self.new_task_with_info(ctx, cur_turn_states)
+                    if cur_turn_states.got_entity_info
+                    else self.got_new_task(ctx, cur_turn_states)
+                )
+            ctx.cur_states.confirm_intent = False
+            ctx.cur_states.unconfirmed_intent.pop()
+            if ctx.cur_states.cur_task and ctx.cur_states.cur_entity_name:
+                if ctx.cur_states.agent_action_type != "INFORM":
+                    response_tmp = self.response.ask_info(
+                        ctx.cur_states.cur_task,
+                        ctx.cur_states.cur_entity_name,
+                    )
+                else:  # inform
+                    response_tmp = self._inform_user(ctx, cur_turn_states)
+                ctx.reset_update()
+                return response_tmp
+            else:
+                ctx.cur_states.confirm_continue = True
+                return self.response.confirm_finish()
 
     def entity_info_handler(
         self,
@@ -357,29 +339,26 @@ class DialoguePolicy:
         if candidates are not explicitly provided,
         it will use self.entity_candidates
         """
-        candidate_list = candidates if candidates else cur_turn_states.entity_candidates
+        candidate_list = candidates or cur_turn_states.entity_candidates
 
         # filter the candidate by the expected type
         entity_classes = self.entity_manager.get_entity_classes(
             ctx.cur_states.cur_entity_name,
         )
 
-        if not entity_classes:
-            candidate_list = []
-        else:
-            candidate_list = [
+        candidate_list = (
+            [
                 candidate
                 for candidate in candidate_list
                 if type(candidate) in entity_classes
             ]
-
-        # check whether an entity extracted from the spelling is present
-        spelling_entity = False
-        for candidate in candidate_list:
-            if candidate.method == ExtractionMethod.SPELLING:
-                spelling_entity = True
-                break
-
+            if entity_classes
+            else []
+        )
+        spelling_entity = any(
+            candidate.method == ExtractionMethod.SPELLING
+            for candidate in candidate_list
+        )
         # extract unique entity values as a list
         # we want to keep the entity type, so `candidate_list` is a list of entity
         # instances, rather than entity values
@@ -391,19 +370,15 @@ class DialoguePolicy:
             got_entity, entity = self.choose_entity(ctx, cur_turn_states)
             ctx.cur_states.multiple_entities = False
             ctx.cur_states.multiple_entities_pool = []
-            if got_entity:
-                ctx.update_entity["entity"] = ctx.cur_states.cur_entity_name
-                ctx.update_entity["value"] = entity
-                ctx.update_entity["task"] = ctx.cur_states.cur_task
-                response_tmp = self._check_info(ctx, cur_turn_states)
-                return response_tmp
-            else:
-                response_tmp = self.response.ask_info(
+            if not got_entity:
+                return self.response.ask_info(
                     ctx.cur_states.cur_task,
                     ctx.cur_states.cur_entity_name,
                 )
-                return response_tmp
-
+            ctx.update_entity["entity"] = ctx.cur_states.cur_entity_name
+            ctx.update_entity["value"] = entity
+            ctx.update_entity["task"] = ctx.cur_states.cur_task
+            return self._check_info(ctx, cur_turn_states)
         log.info(f"cur_task = {ctx.cur_states.cur_task}")
         log.info(f"spelling_entity = {spelling_entity}")
         log.info("need_confirm_entity = " f"{ctx.cur_states.need_confirm_entity}")
@@ -428,12 +403,13 @@ class DialoguePolicy:
                 ctx.cur_states.need_confirm_retrieved_entity
                 and self._is_retrieved_entity(ctx, entity)
             )
-            need_confirm_entity = ctx.cur_states.need_confirm_entity or retrieved_entity
-
             if (
-                spelling_entity and not self.bot_config.text_bot
-            ):  # single spelling entity
-                if need_confirm_entity:
+                need_confirm_entity := ctx.cur_states.need_confirm_entity
+                or retrieved_entity
+            ):
+                if     (
+                    spelling_entity and not self.bot_config.text_bot
+                ):
                     response_tmp = self._ask_confirm(
                         ctx.cur_states.cur_entity_name,
                         entity,
@@ -444,18 +420,6 @@ class DialoguePolicy:
                     log.info("confirm_entity = " f"{ctx.cur_states.confirm_entity}")
                     log.info("cur_entity_name = " f"{ctx.cur_states.cur_entity_name}")
                 else:
-                    ctx.update_entity["entity"] = ctx.cur_states.cur_entity_name
-                    ctx.update_entity["value"] = entity
-                    ctx.update_entity["task"] = ctx.cur_states.cur_task
-                    response_tmp = self._check_info(ctx, cur_turn_states)
-
-            else:  # single non-spelling entity
-                if not need_confirm_entity:
-                    ctx.update_entity["entity"] = ctx.cur_states.cur_entity_name
-                    ctx.update_entity["value"] = entity
-                    ctx.update_entity["task"] = ctx.cur_states.cur_task
-                    response_tmp = self._check_info(ctx, cur_turn_states)
-                else:
                     ctx.reset_update()
                     response_tmp = self._ask_confirm(
                         ctx.cur_states.cur_entity_name,
@@ -464,6 +428,12 @@ class DialoguePolicy:
                         retrieved=retrieved_entity,
                     )
                     self.state_manager.receive_info_from_policy(ctx)
+
+            else:
+                ctx.update_entity["entity"] = ctx.cur_states.cur_entity_name
+                ctx.update_entity["value"] = entity
+                ctx.update_entity["task"] = ctx.cur_states.cur_task
+                response_tmp = self._check_info(ctx, cur_turn_states)
 
         else:  # multiple entity types
             ctx.cur_states.multiple_entities = True
@@ -608,18 +578,15 @@ class DialoguePolicy:
             )
             ctx.cur_states.prev_task_finish_func_response = ""
             if prev_task_finished_response:
-                response_tmp += " " + prev_task_finished_response
+                response_tmp += f" {prev_task_finished_response}"
         if ctx.cur_states.prev_task_finished and self.task_config[cur_task].repeat:
-            response_tmp += " " + self._repeat_task(cur_task, ctx, cur_turn_states)
+            response_tmp += f" {self._repeat_task(cur_task, ctx, cur_turn_states)}"
         elif ctx.cur_states.confirm_continue:
-            response_tmp += " " + self.response.confirm_finish()
+            response_tmp += f" {self.response.confirm_finish()}"
         elif ctx.cur_states.agent_action_type == "INFORM":
-            response_tmp += " " + self._inform_user(ctx, cur_turn_states)
+            response_tmp += f" {self._inform_user(ctx, cur_turn_states)}"
         elif ctx.cur_states.agent_action_type and ctx.cur_states.cur_entity_name:
-            response_tmp += " " + self.response.ask_info(
-                ctx.cur_states.cur_task,
-                ctx.cur_states.cur_entity_name,
-            )
+            response_tmp += f" {self.response.ask_info(ctx.cur_states.cur_task, ctx.cur_states.cur_entity_name)}"
         ctx.reset_update()
         ctx.cur_states.inform_resp = None
         return response_tmp

@@ -361,10 +361,7 @@ class TestDialoguePolicy(unittest.TestCase):
         at the same time.
         """
         mock_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format(
-                "few clouds", "Los Altos", 94022
-            ),
+            True, 'Weather condition is few clouds at Los Altos, 94022'
         )
 
         mocked_info.side_effect = [
@@ -517,9 +514,7 @@ class TestDialoguePolicy(unittest.TestCase):
         In this test case, we test after the user refuse to repeat a task,
         whether the repeat key in DialogueContext is reset to False.
         """
-        mock_func.side_effect = [
-            resp(True, "{} inch equals to {} centimeter".format("3.0", "7.62")),
-        ]
+        mock_func.side_effect = [resp(True, '3.0 inch equals to 7.62 centimeter')]
 
         mocked_info.side_effect = [
             {
@@ -720,9 +715,7 @@ class TestDialoguePolicy(unittest.TestCase):
         and brings up a new intent,
         whether the repeat key in DialogueContext is reset to False.
         """
-        mock_func.side_effect = [
-            resp(True, "{} inch equals to {} centimeter".format("3.0", "7.62")),
-        ]
+        mock_func.side_effect = [resp(True, '3.0 inch equals to 7.62 centimeter')]
 
         mocked_info.side_effect = [
             {
@@ -997,8 +990,8 @@ class TestDialoguePolicy(unittest.TestCase):
         whether the repeat key in DialogueContext is set to True.
         """
         mock_func.side_effect = [
-            resp(True, "{} inch equals to {} centimeter".format("3.0", "7.62")),
-            resp(True, "{} inch equals to {} centimeter".format("4.0", "10.16")),
+            resp(True, '3.0 inch equals to 7.62 centimeter'),
+            resp(True, '4.0 inch equals to 10.16 centimeter'),
         ]
         mocked_info.side_effect = [
             {

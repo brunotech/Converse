@@ -69,12 +69,12 @@ def convert_example_to_features(example, tokenizer, max_seq_length):
     masked_lm_labels = example["masked_lm_labels"]
 
     if len(tokens) > max_seq_length:
-        logger.info("len(tokens): {}".format(len(tokens)))
-        logger.info("tokens: {}".format(tokens))
+        logger.info(f"len(tokens): {len(tokens)}")
+        logger.info(f"tokens: {tokens}")
         tokens = tokens[:max_seq_length]
 
     if len(tokens) != len(segment_ids):
-        logger.info("tokens: {}\nsegment_ids: {}".format(tokens, segment_ids))
+        logger.info(f"tokens: {tokens}\nsegment_ids: {segment_ids}")
         segment_ids = [0] * len(tokens)
 
     assert (
@@ -95,14 +95,13 @@ def convert_example_to_features(example, tokenizer, max_seq_length):
     lm_label_array = np.full(max_seq_length, dtype=np.int, fill_value=-1)
     lm_label_array[masked_lm_positions] = masked_label_ids
 
-    features = InputFeatures(
+    return InputFeatures(
         input_ids=input_array,
         input_mask=mask_array,
         segment_ids=segment_array,
         lm_label_ids=lm_label_array,
         is_next=is_random_next,
     )
-    return features
 
 
 class PregeneratedDataset(Dataset):
@@ -113,12 +112,12 @@ class PregeneratedDataset(Dataset):
         self.tokenizer = tokenizer
         self.epoch = epoch
         self.data_epoch = int(epoch % num_data_epochs)
-        logger.info("training_path: {}".format(training_path))
-        data_file = training_path / "epoch_{}.json".format(self.data_epoch)
-        metrics_file = training_path / "epoch_{}_metrics.json".format(self.data_epoch)
+        logger.info(f"training_path: {training_path}")
+        data_file = training_path / f"epoch_{self.data_epoch}.json"
+        metrics_file = training_path / f"epoch_{self.data_epoch}_metrics.json"
 
-        logger.info("data_file: {}".format(data_file))
-        logger.info("metrics_file: {}".format(metrics_file))
+        logger.info(f"data_file: {data_file}")
+        logger.info(f"metrics_file: {metrics_file}")
 
         assert data_file.is_file() and metrics_file.is_file()
         metrics = json.loads(metrics_file.read_text())
@@ -169,7 +168,7 @@ class PregeneratedDataset(Dataset):
             )
             is_nexts = np.zeros(shape=(num_samples,), dtype=np.bool)
 
-        logging.info("Loading training examples for epoch {}".format(epoch))
+        logging.info(f"Loading training examples for epoch {epoch}")
 
         with data_file.open() as f:
             for i, line in enumerate(

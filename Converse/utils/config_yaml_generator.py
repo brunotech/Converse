@@ -65,53 +65,44 @@ class YamlGenerator:
             self.task_dict["Bot"]["bot_name"] = bot_name
 
     def add_task(self, task_name):
-        if task_name not in self.task_dict["Task"]:
-            self.task_dict["Task"][task_name] = dict()
-            self.task_dict["Task"][task_name]["description"] = None
-            self.task_dict["Task"][task_name]["samples"] = list()
-            self.task_dict["Task"][task_name]["entities"] = dict()
-            self.task_dict["Task"][task_name]["entity_groups"] = dict()
-            self.task_dict["Task"][task_name]["entity_groups"][
-                "entity_group_1"
-            ] = list()
-            self.task_dict["Task"][task_name]["success"] = dict()
-            self.task_dict["Task"][task_name]["success"]["AND"] = list()
-            self.task_dict["Task"][task_name]["finish_response"] = dict()
-            self.task_dict["Task"][task_name]["finish_response"]["success"] = list()
-            self.task_dict["Task"][task_name]["finish_response"]["failure"] = list()
-            self.task_dict["Task"][task_name]["repeat"] = False
-            self.task_dict["Task"][task_name]["repeat_response"] = list()
-            self.task_dict["Task"][task_name]["task_finish_function"] = None
-            self.task_dict["Task"][task_name]["max_turns"] = 10
+        if task_name in self.task_dict["Task"]:
+            return
+        self.task_dict["Task"][task_name] = {
+            "description": None,
+            "samples": [],
+            "entities": {},
+            "entity_groups": {},
+        }
+        self.task_dict["Task"][task_name]["entity_groups"]["entity_group_1"] = []
+        self.task_dict["Task"][task_name]["success"] = {"AND": []}
+        self.task_dict["Task"][task_name]["finish_response"] = {
+            "success": [],
+            "failure": [],
+        }
+        self.task_dict["Task"][task_name]["repeat"] = False
+        self.task_dict["Task"][task_name]["repeat_response"] = []
+        self.task_dict["Task"][task_name]["task_finish_function"] = None
+        self.task_dict["Task"][task_name]["max_turns"] = 10
 
     def add_entity(self, task_name, entity_name):
         if entity_name not in self.task_dict["Task"][task_name]["entities"]:
-            self.task_dict["Task"][task_name]["entities"][entity_name] = dict()
-            self.task_dict["Task"][task_name]["entities"][entity_name][
-                "function"
-            ] = None
-            self.task_dict["Task"][task_name]["entities"][entity_name][
-                "confirm"
-            ] = False
-            self.task_dict["Task"][task_name]["entities"][entity_name][
-                "prompt"
-            ] = list()
-            self.task_dict["Task"][task_name]["entities"][entity_name][
-                "response"
-            ] = list()
-
+            self.task_dict["Task"][task_name]["entities"][entity_name] = {
+                "function": None,
+                "confirm": False,
+                "prompt": [],
+                "response": [],
+            }
         if entity_name not in self.entity_dict["Entity"]:
-            self.entity_dict["Entity"][entity_name] = dict()
-            self.entity_dict["Entity"][entity_name]["type"] = None
-            self.entity_dict["Entity"][entity_name]["methods"] = dict()
+            self.entity_dict["Entity"][entity_name] = {"type": None, "methods": {}}
 
     def add_faq(self, faq_name: str):
         if "FAQ" not in self.task_dict:
-            self.task_dict["FAQ"] = dict()
-        self.task_dict["FAQ"][faq_name] = dict()
-        self.task_dict["FAQ"][faq_name]["samples"] = []
-        self.task_dict["FAQ"][faq_name]["answers"] = []
-        self.task_dict["FAQ"][faq_name]["question_match_options"] = []
+            self.task_dict["FAQ"] = {}
+        self.task_dict["FAQ"][faq_name] = {
+            "samples": [],
+            "answers": [],
+            "question_match_options": [],
+        }
 
     def generate_yaml_file(self):
         save_yaml(self.task_dict, self.task_yaml_path)
@@ -122,8 +113,7 @@ def receive_user_input(config_generator: YamlGenerator):
     bot_name = input("Input bot name: ")
     config_generator.add_bot_name(bot_name)
     while True:
-        task_name = input("Input a task name: ")
-        if task_name:
+        if task_name := input("Input a task name: "):
             config_generator.add_task(task_name)
             entity_names = input(
                 "Input entity names, separated by '||' (entity_1||entity_2||entity_3): "
@@ -140,15 +130,12 @@ def receive_user_input(config_generator: YamlGenerator):
                     ).split("||")
                     for faq_name in faq_names:
                         config_generator.add_faq(faq_name)
-                    break
-                else:
-                    break
+                break
     config_generator.generate_yaml_file()
 
 
 if __name__ == "__main__":
-    yaml_dir = input("Input yaml dir, default is Converse/bot_configs: ")
-    if yaml_dir:
+    if yaml_dir := input("Input yaml dir, default is Converse/bot_configs: "):
         config_generator = YamlGenerator(yaml_dir)
     else:
         config_generator = YamlGenerator()

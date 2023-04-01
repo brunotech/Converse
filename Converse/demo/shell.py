@@ -113,23 +113,21 @@ def ask_for_yaml_dir(first_time=True):
     """
     To get a user specified path to save all the configuration files.
     """
-    if first_time:
-        yaml_dir = input(
+    return (
+        input(
             "- Input the path that you would like to use "
             "to save all the configuration files, "
             "\ndefault is a new folder named "
             "Converse/bot_configs under the current dir"
             "\n: "
         )
-    else:
-        yaml_dir = input(
+        if first_time
+        else input(
             "- Input the path you saved all the configuration files, "
             "\ndefault is a folder named Converse/bot_configs under the current dir"
             "\n: "
         )
-    if not yaml_dir:
-        yaml_dir = "./Converse/bot_configs"
-    return yaml_dir
+    ) or "./Converse/bot_configs"
 
 
 def build():
@@ -221,12 +219,11 @@ def build():
 
 def convert_boolean_value(var, default_value):
     if var.strip().lower() == "y":
-        converted_var = True
+        return True
     elif var.strip().lower() == "n":
-        converted_var = False
+        return False
     else:
-        converted_var = default_value
-    return converted_var
+        return default_value
 
 
 def demo():
@@ -320,13 +317,13 @@ def set_up_demo_bots(yaml_dir, template_bot_name):
         [
             "python",
             os.path.join(os.getcwd(), "chat_window_app.py"),
-            "--response_path=" + response_path,
-            "--policy_path=" + policy_path,
-            "--task_path=" + task_path,
-            "--entity_path=" + entity_path,
-            "--entity_extraction_path=" + entity_extraction_path,
-            "--info_path=" + info_path,
-            "--entity_function_path=" + entity_function_path,
+            f"--response_path={response_path}",
+            f"--policy_path={policy_path}",
+            f"--task_path={task_path}",
+            f"--entity_path={entity_path}",
+            f"--entity_extraction_path={entity_extraction_path}",
+            f"--info_path={info_path}",
+            f"--entity_function_path={entity_function_path}",
         ]
     )
 

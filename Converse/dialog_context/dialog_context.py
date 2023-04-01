@@ -50,8 +50,7 @@ class UserHistory:
             win_size -= 1
             if win_size == 0:
                 break
-        res = res[::-1]
-        return res
+        return res[::-1]
 
 
 class Message:
@@ -97,8 +96,8 @@ class DialogContext:
         self.do_pause = False
         self.finish_and_fail = False
         self.repeat = False
-        self.update_entity = dict()
-        self.policy_map = dict()
+        self.update_entity = {}
+        self.policy_map = {}
         self.bot_config = bot_config
         # policy map stores string mapping from strings in config yaml
         # file to strings represent the actual variables and functions,
@@ -111,7 +110,7 @@ class DialogContext:
         self.entity_history_manager = EntityHistoryManager()
         self.entity_history_manager.reset()
         self.user_history = UserHistory()
-        self.collected_entities = dict()
+        self.collected_entities = {}
         self.reset_update()
 
     def serialize(self) -> str:

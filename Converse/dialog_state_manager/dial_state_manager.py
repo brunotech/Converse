@@ -119,7 +119,7 @@ class StatesWithinCurrentTurn:
         entity_candidates may be changed by new_task_with_info() in dial_policy.py
         """
         # other modules output
-        self.extracted_info = dict()
+        self.extracted_info = {}
         self.entity_candidates = []
         # states from other modules
         self.asr_out = ""
@@ -169,7 +169,7 @@ class StateManager:
         states.cur_entity_types = self.entity_manager.get_entity_types(
             states.cur_entity_name
         )
-        if not (not states.cur_task and states.confirm_continue):
+        if states.cur_task or not states.confirm_continue:
             states.confirm_continue = tree_manager.finish
 
         if (
@@ -253,23 +253,19 @@ class StateManager:
         function and execute if the user specifies one.
         :param ctx: dialog context
         """
-        # len(prev_tasks) is equal to len(prev_tasks_success)
-        # If sub task is False, prev_tasks is [sub_task, main_task], prev_task_success
-        # is [False, False] since main_task requires sub_task to be True
-        # In other cases, only one task in prev_tasks
         if ctx.cur_states.prev_tasks_success[0]:
-            func_name = self.task_config[
+            if func_name := self.task_config[
                 ctx.cur_states.prev_tasks[0]
-            ].task_finish_function
-            if func_name:
+            ].task_finish_function:
                 # if the function is in both default ef and additional ef,
                 # the one in additional ef will override the one in the default ef
                 func, url = self._get_entity_or_task_function(func_name)
                 res = self._execute_entity_or_task_function(ctx, func, url)
-                if not res["success"]:
-                    ctx.cur_states.prev_tasks_success[0] = False
-                else:
+                if res["success"]:
                     ctx.cur_states.prev_task_finish_func_response = res["msg"]
+
+                else:
+                    ctx.cur_states.prev_tasks_success[0] = False
 
     def receive_info_from_policy(self, ctx):
         """

@@ -16,12 +16,10 @@ class IntentServicer(intent_pb2_grpc.IntentDetectionServiceServicer):
     def IntentDetection(self, request, context):
         try:
             text = request.document
-            tasks_list = []
-            for t in request.tasks:
-                sample_list = []
-                for s in t.samples:
-                    sample_list.append(s)
-                tasks_list.append({"task": t.label, "examples": sample_list})
+            tasks_list = [
+                {"task": t.label, "examples": list(t.samples)}
+                for t in request.tasks
+            ]
             intent, max_score, sent = self.predictor.predict(text, tasks_list)
             response = intent_pb2.IntentDetectionResponse()
             if intent == "None":

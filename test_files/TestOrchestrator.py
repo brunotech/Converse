@@ -473,10 +473,7 @@ class TestOrchestrator(unittest.TestCase):
         mocked_info.side_effect = [info1, info2, info3]
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format(
-                "broken clouds", "Los Altos", 94022
-            ),
+            True, 'Weather condition is broken clouds at Los Altos, 94022'
         )
         resp1 = "Oh sure, I'd be happy to help you check local weather."
         resp2 = (
@@ -566,12 +563,7 @@ class TestOrchestrator(unittest.TestCase):
         mocked_info.side_effect = [info1, info1]
 
         mocked_func.side_effect = [
-            resp(
-                True,
-                "Weather condition is {} at {}, {}".format(
-                    "smoked", "Palo Alto", 94301
-                ),
-            ),
+            resp(True, 'Weather condition is smoked at Palo Alto, 94301'),
             TimeoutError(),
         ]
 
@@ -1800,8 +1792,7 @@ class TestOrchestrator(unittest.TestCase):
         )
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "San Mateo", 94403),
+            True, 'Weather condition is clear sky at San Mateo, 94403'
         )
 
         mocked_info.side_effect = [
@@ -2097,8 +2088,7 @@ class TestOrchestrator(unittest.TestCase):
         )
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "Palo Alto", 94301),
+            True, 'Weather condition is clear sky at Palo Alto, 94301'
         )
 
         mocked_info.side_effect = [
@@ -2257,8 +2247,7 @@ class TestOrchestrator(unittest.TestCase):
         )
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "San Mateo", 94403),
+            True, 'Weather condition is clear sky at San Mateo, 94403'
         )
 
         mocked_info.side_effect = [
@@ -2456,8 +2445,7 @@ class TestOrchestrator(unittest.TestCase):
         )
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "Palo Alto", 94301),
+            True, 'Weather condition is clear sky at Palo Alto, 94301'
         )
 
         mocked_info.side_effect = [
@@ -2781,8 +2769,7 @@ class TestOrchestrator(unittest.TestCase):
         )
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "Palo Alto", 94301),
+            True, 'Weather condition is clear sky at Palo Alto, 94301'
         )
 
         mocked_info.side_effect = [
@@ -3106,8 +3093,7 @@ class TestOrchestrator(unittest.TestCase):
         )
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "Palo Alto", 94301),
+            True, 'Weather condition is clear sky at Palo Alto, 94301'
         )
 
         mocked_info.side_effect = [
@@ -3554,8 +3540,7 @@ class TestOrchestrator(unittest.TestCase):
         )
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "Palo Alto", 94301),
+            True, 'Weather condition is clear sky at Palo Alto, 94301'
         )
 
         mocked_info.side_effect = [
@@ -4407,8 +4392,7 @@ class TestOrchestrator(unittest.TestCase):
             dm.policy_layer.bot_config,
         )
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "San Mateo", 94403),
+            True, 'Weather condition is clear sky at San Mateo, 94403'
         )
 
         mocked_info.side_effect = [
@@ -4505,8 +4489,7 @@ class TestOrchestrator(unittest.TestCase):
             dm.policy_layer.bot_config,
         )
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "Palo Alto", 94301),
+            True, 'Weather condition is clear sky at Palo Alto, 94301'
         )
 
         mocked_info.side_effect = [
@@ -4919,8 +4902,7 @@ class TestOrchestrator(unittest.TestCase):
         ]
 
         mocked_func.return_value = resp(
-            True,
-            "Weather condition is {} at {}, {}".format("clear sky", "San Mateo", 94403),
+            True, 'Weather condition is clear sky at San Mateo, 94403'
         )
 
         user_inputs = [
@@ -6820,18 +6802,8 @@ class TestOrchestrator(unittest.TestCase):
         ]
 
         mocked_func.side_effect = [
-            resp(
-                True,
-                "Weather condition is {} at {}, {}".format(
-                    "clear sky", "Palo Alto", 94301
-                ),
-            ),
-            resp(
-                True,
-                "Weather condition is {} at {}, {}".format(
-                    "few clouds", "San Mateo", 94403
-                ),
-            ),
+            resp(True, 'Weather condition is clear sky at Palo Alto, 94301'),
+            resp(True, 'Weather condition is few clouds at San Mateo, 94403'),
         ]
 
         mocked_api.side_effect = [
@@ -6981,12 +6953,7 @@ class TestOrchestrator(unittest.TestCase):
             "san mateo",
         ]
         mocked_func.side_effect = [
-            resp(
-                True,
-                "Weather condition is {} at {}, {}".format(
-                    "few clouds", "San Mateo", 94403
-                ),
-            ),
+            resp(True, 'Weather condition is few clouds at San Mateo, 94403')
         ]
 
         for user_input in user_inputs:
@@ -7094,12 +7061,7 @@ class TestOrchestrator(unittest.TestCase):
             "94403",
         ]
         mocked_func.side_effect = [
-            resp(
-                True,
-                "Weather condition is {} at {}, {}".format(
-                    "few clouds", "San Mateo", 94403
-                ),
-            ),
+            resp(True, 'Weather condition is few clouds at San Mateo, 94403')
         ]
 
         for user_input in user_inputs:

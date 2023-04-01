@@ -23,7 +23,7 @@ class TestConfigTask(unittest.TestCase):
         }
         expected_turns = {"user_login": 5, "user_security_question": 3}
 
-        for idx, task_name in enumerate(self.task_config):
+        for task_name in self.task_config:
             task = self.task_config[task_name]
             self.assertIn(task_name, expected_tasks)
             self.assertEqual(task.description, expected_descriptions[task_name])

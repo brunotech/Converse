@@ -43,13 +43,12 @@ def builder():
 
 
 def function_names():
-    function_names = []
     skip = {"requests", "TimeSeries", "timeout", "resp", "process", "fuzz"}
-    for func in dir(ef):
-        if func not in skip and not func.startswith("__"):
-            function_names.append(func)
-
-    return function_names
+    return [
+        func
+        for func in dir(ef)
+        if func not in skip and not func.startswith("__")
+    ]
 
 
 @app.route("/upload", methods=["POST"])
@@ -74,16 +73,13 @@ def upload():
     elif filetype == "response":
         path = args.response_path
 
-    if file and filepath == path + ".tmpl":
+    if file and filepath == f"{path}.tmpl":
         file.save(filepath)
-        return {
-            "status": "ok",
-            "msg": "uploaded " + filetype + " template file:" + filename,
-        }
+        return {"status": "ok", "msg": f"uploaded {filetype} template file:{filename}"}
     else:
         return {
             "status": "error",
-            "msg": "Wrong file format, expect " + os.path.basename(path + ".tmpl"),
+            "msg": f'Wrong file format, expect {os.path.basename(f"{path}.tmpl")}',
         }
 
 
@@ -95,9 +91,6 @@ def save_tree():
     if not user_input or not file:
         return {"status": "error", "msg": "Missing parameters"}
 
-    if not file:
-        file = "task"
-
     path = args.task_path
     if file == "entity":
         path = args.entity_path
@@ -106,7 +99,7 @@ def save_tree():
     elif file == "response":
         path = args.response_path
     timestamp = datetime.now().strftime("%Y_%m_%d-%I:%M:%S_%p")
-    os.rename(path, path + "." + timestamp)
+    os.rename(path, f"{path}.{timestamp}")
     return {"status": "ok", "msg": "Saved", "response": save_yaml(user_input, path)}
 
 
@@ -127,12 +120,12 @@ def load_tree():
     elif file == "response":
         path = args.response_path
 
-    tmpl = path + ".tmpl"
+    tmpl = f"{path}.tmpl"
 
-    history = glob.glob(path + ".2*")
+    history = glob.glob(f"{path}.2*")
 
     if timestamp:
-        path = path + "." + timestamp
+        path = f"{path}.{timestamp}"
 
     try:
         data = load_yaml(path)
@@ -217,10 +210,10 @@ def predict():
 @app.route("/dialog_status/<cid>", methods=["GET"])
 def showtree(cid):
     try:
-        ctx = dmgr.get_ctx(cid)
-        if not ctx:
+        if ctx := dmgr.get_ctx(cid):
+            tree_data = ctx.tree_manager.task_tree.tree_show()
+        else:
             return json.dumps({"Info": "session not initialized."})
-        tree_data = ctx.tree_manager.task_tree.tree_show()
     except Exception as e:
         msg = printException()
         return {"status": "error", "msg": msg}

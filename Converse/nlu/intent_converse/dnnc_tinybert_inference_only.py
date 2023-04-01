@@ -47,7 +47,7 @@ class DNNC:
             label_distribution = None
 
         features = []
-        for (ex_index, example) in enumerate(examples):
+        for ex_index, example in enumerate(examples):
             tokens_a = self.tokenizer.tokenize(example.text_a)
             tokens_b = self.tokenizer.tokenize(example.text_b)
 
@@ -72,11 +72,7 @@ class DNNC:
             assert len(input_mask) == self.max_seq_length
             assert len(segment_ids) == self.max_seq_length
 
-            if example.label is None:
-                label_id = -1
-            else:
-                label_id = label_map[example.label]
-
+            label_id = -1 if example.label is None else label_map[example.label]
             if train:
                 label_distribution[label_id] += 1.0
 
@@ -89,11 +85,10 @@ class DNNC:
                 )
             )
 
-        if train:
-            label_distribution = label_distribution / label_distribution.sum()
-            return features, label_distribution
-        else:
+        if not train:
             return features
+        label_distribution = label_distribution / label_distribution.sum()
+        return features, label_distribution
 
     def predict(self, data):
 
@@ -138,10 +133,7 @@ class DNNC:
                 probs_ = torch.softmax(logits, dim=1)
 
             probs_ = probs_.detach().cpu()
-            if probs is None:
-                probs = probs_
-            else:
-                probs = torch.cat((probs, probs_), dim=0)
+            probs = probs_ if probs is None else torch.cat((probs, probs_), dim=0)
             labels += [
                 self.label_list[torch.max(probs_[i], dim=0)[1].item()]
                 for i in range(probs_.size(0))
@@ -171,10 +163,8 @@ class DnncIntentPredictor:
 
         nli_input = []
         for t in tasks:
-            for e in t[example_key]:
-                nli_input.append((input, e.lower()))
-
-        assert len(nli_input) > 0
+            nli_input.extend((input, e.lower()) for e in t[example_key])
+        assert nli_input
 
         results = self.model.predict(nli_input)
         maxScore, maxIndex = results[1][:, 0].max(dim=0)
@@ -186,12 +176,11 @@ class DnncIntentPredictor:
         matched_example = "None"
         if maxScore < threshold:
             return intent, 0, matched_example
-        else:
-            index = -1
-            for t in tasks:
-                for e in t[example_key]:
-                    index += 1
-                    if index == maxIndex:
-                        intent = t[task_key]
-                        matched_example = e
-            return intent, maxScore, matched_example
+        index = -1
+        for t in tasks:
+            for e in t[example_key]:
+                index += 1
+                if index == maxIndex:
+                    intent = t[task_key]
+                    matched_example = e
+        return intent, maxScore, matched_example

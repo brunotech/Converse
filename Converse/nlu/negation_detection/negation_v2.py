@@ -55,8 +55,8 @@ SELECTED_POS_TAGS = {
 class NegationDetection:
     def __init__(self, model_path: str):
         print("Initializing NegationDetection ... ", end="", flush=True)
-        with codecs.open(model_path + "/negative_words.txt", "r", "utf-8") as f:
-            self.neg_word_set = set([line.rstrip("\n") for line in f])
+        with codecs.open(f"{model_path}/negative_words.txt", "r", "utf-8") as f:
+            self.neg_word_set = {line.rstrip("\n") for line in f}
         print("Done")
 
     def scope_detection(
@@ -109,16 +109,14 @@ class NegationDetection:
         #     for i in range(left_most, -1, -1):
         #         if word_pos_list[left_most][1] == 1:
         #             scope_list.append(word_pos_list[left_most][0])
-        if (
-            len(scope_list) > 0
-        ):  # i == len(word_pos_list)-1 and indictors[i] == 1:   ### ToDo, clean here!
+        if scope_list:  # i == len(word_pos_list)-1 and indictors[i] == 1:   ### ToDo, clean here!
             return (right_most, right_most + len(scope_list))
         else:
             return (len(indictors), len(indictors))
 
     def __call__(
         self, strr: str  # type: str
-    ):  # type: (str) -> Tuple[List[str], List[Tuple[int, int, int]]]
+    ):    # type: (str) -> Tuple[List[str], List[Tuple[int, int, int]]]
         """ Detect negation word and scope from an input sentence """
         """ Return the word list of the input sentence and the triplets (represented by three integers)
             of the detected negation parts.
@@ -139,10 +137,7 @@ class NegationDetection:
                     nltk_start = idd
         if nltk_end != -1:
             nltk_end += 1
-        if nltk_end > nltk_start:
-            nltk_find = True
-        else:
-            nltk_find = False
+        nltk_find = nltk_end > nltk_start
         # print('nltk_find:', nltk_find)
 
         # Our tricks
@@ -171,7 +166,7 @@ class NegationDetection:
                 # print('scope:', wordlist[scope_tuple[0]: scope_tuple[1]])
                 returned_triplets.append((id, scope_tuple[0], scope_tuple[1]))
                 fine_negation = True
-        if fine_negation is False and nltk_find is False:
+        if fine_negation is False and not nltk_find:
             # print('no negation detected')
             returned_triplets.append((-1, -1, -1))
 

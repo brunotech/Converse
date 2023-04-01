@@ -43,13 +43,10 @@ class SimpleDB:
         for k, v in entities.items():
             if cur_entity and k != cur_entity:
                 continue
-            if getattr(User, k):
-                if v == "WRONG INFO!":
-                    continue
+            if getattr(User, k) and v != "WRONG INFO!":
                 arr.append(f" {k} = '{v}' ")
         sql = "select * from User where " + " and ".join(arr)
-        users = User.select_by_sql(sql)
-        return users
+        return User.select_by_sql(sql)
 
     def single_step_verify(
         self,
@@ -78,26 +75,22 @@ class SimpleDB:
         order = Order.get(oid=oid)
         if not order:
             return "None"
-        arr = []
-        arr.append(f"delivery_address:{order.delivery_address}")
-        arr.append(f"product:{order.product}")
-        arr.append(f"quantity:{order.quantity}")
-        arr.append(f"order_status:{order.order_status}")
+        arr = [
+            f"delivery_address:{order.delivery_address}",
+            f"product:{order.product}",
+            f"quantity:{order.quantity}",
+            f"order_status:{order.order_status}",
+        ]
         return "||".join(arr)
 
     @db_session
     def get_order_status(self, oid: int):
         order = Order.get(oid=oid)
-        if not order:
-            return "ERROR"
-        else:
-            return order.order_status
+        return order.order_status if order else "ERROR"
 
     @db_session
     def test_db(self):
-        # res = db.select("zip_code from User where email_address = 'peter@hotmail.com'")
-        res = db.select(" zip_code from User where uid = 1 ")
-        return res
+        return db.select(" zip_code from User where uid = 1 ")
 
 
 if __name__ == "__main__":
